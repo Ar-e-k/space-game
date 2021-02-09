@@ -3,6 +3,8 @@ import sprites
 import math
 from random import randint, random
 
+print("more than 1 day")
+
 class game:
 
     def __init__(self, screen, player):
