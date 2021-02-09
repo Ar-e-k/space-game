@@ -3,8 +3,6 @@ import sprites
 import math
 from random import randint, random
 
-print("more than 1 day")
-
 class game:
 
     def __init__(self, screen, player):
@@ -13,39 +11,41 @@ class game:
 
         self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
 
-        self._enemies=[sprites.enemy(100, 1, randint(0, screen_y-100), screen_x-100, [100, 100])]
-        self._enemy_probability=99.9
+        self._enemies=[]
+        self._enemy_probability=99.8
 
         self.status=True
+
+        self.score=0
 
     def update_acceleration(self, dir):
         self.player.horixontal_thrust(dir[0])
         self.player.vertical_thrust(dir[1])
 
-    def frame(self, dir, fire):
+    def frame(self, dir, fire, fps):
         self.update_acceleration(dir)
         self.player.update_velocity()
         self.player.move()
         self.spawn_enemis()
         fire_check=self.check_fire(fire)
         self.move_enemies()
-        self.draw_background()
+        self.draw_background(fps)
         self.draw_player()
-        self.draw_enemy()
-        self.check_colisions()
+        self.iterate_enemies(fire_check)
         if fire_check:
             self.draw_fire()
-            self.check_colisions_laser()
         return self.status
+
+    def update_score(self):
+        pass
 
     def spawn_enemis(self):
         number=random()*100
         if number>self._enemy_probability:
-            box1=sprites.enemy(100, 1, randint(0, screen_y-100), screen_x-100, [100, 100])
+            box1=sprites.enemy(100, 3, randint(0, screen_y-100), screen_x-100, [100, 100])
             self._enemies.append(box1)
         else:
             self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
-
 
     def move_enemies(self):
         for enemy in self._enemies:
@@ -68,7 +68,7 @@ class game:
             self.player.gun.reload_timer()
             return False
 
-    def draw_background(self):
+    def draw_background(self, fps):
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [255,255,255], rec)
 
@@ -90,6 +90,15 @@ class game:
         self.get_text(str("ammo: "+str(amo)), [1100, 0])
         self.get_text(str("reload: "+str(reload)), [1100, 50])
 
+        health=self.player.life
+        self.get_text(str("health: "+str(health)), [0, screen_y-50])
+
+        self.get_text(str("enemies: "+str(len(self._enemies))), [0, 150])
+
+        self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [0, screen_y-100])
+        self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
+        self.get_text(str("Raw Frame time: "+str(round(fps.get_rawtime(), 4))), [400, screen_y-150])
+
     def get_text(self, text, pos):
         acceleration=self._font.render(text, False, [0,0,0])
         self._screen.blit(acceleration, pos)
@@ -102,27 +111,47 @@ class game:
         box=self.player.return_gun_box()
         pygame.draw.rect(self._screen, [125,0,0], box)
 
-    def draw_enemy(self):
-        for enemy in self._enemies:
-            box=enemy.return_box()
-            pygame.draw.rect(self._screen, [0,0,0], box)
+    def draw_enemy(self, box):
+        pygame.draw.rect(self._screen, [0,0,0], box)
 
-    def check_colisions(self):
+    def iterate_enemies(self, fire_check):
         player_box=self.player.return_box()
-        for enemy in self._enemies:
-            box=enemy.return_box()
-            if player_box.colliderect(box):
-                self.end_game()
-
-    def check_colisions_laser(self):
         laser_box=self.player.return_gun_box()
         for index, enemy in enumerate(self._enemies):
             box=enemy.return_box()
-            if box.colliderect(laser_box):
+
+            self.draw_enemy(box)
+            self.check_colision(player_box, index, enemy, box)
+            if fire_check:
+                self.check_colisions_laser(laser_box, index, enemy, box)
+
+            self.delete_enemies(index, enemy)
+
+    def delete_enemies(self, index, enemy):
+        if enemy.check_map():
+            self._enemies.pop(index)
+        else:
+            pass
+
+    def check_colision(self, player_box, index, enemy, box):
+        if player_box.colliderect(box):
+            alive=self.player.loose_life()
+            if alive:
+                self._enemies.pop(index)
+            else:
+                self.end_game()
+
+    def check_colisions_laser(self, laser_box, index, enemy, box):
+        if box.colliderect(laser_box):
+            alive=enemy.get_damage(self.player.gun.damage)
+            if alive:
+                pass
+            else:
                 self._enemies.pop(index)
 
     def end_game(self):
         self.status=False
+
 
 def main():
     pygame.init()
@@ -131,16 +160,19 @@ def main():
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
 
     playing=True #Determines is the game on or not
-    player= sprites.player(100, 100, 100000, 100, [200, 100], [screen_x, screen_y])
-    player.load_gun(sprites.gun(100, 1, [screen_x, 5], 400))
+    player=sprites.player(100, 10, 3, 100000, 100, [200, 100], [screen_x, screen_y])
+    player.load_gun(sprites.gun(50, 4, [screen_x, 5], 200))
     play=game(screen, player)
     paused=False
 
     direction=[0, 0]
     fire=False
 
+    FPS = 120
+    fpsclock = pygame.time.Clock()
+
     while playing: #Main gameloop
-        playing=play.frame(direction, fire)
+        playing=play.frame(direction, fire, fpsclock)
         for event in pygame.event.get():
             if event.type==pygame.KEYDOWN:
                 if event.key==27: #key 27 is escape, clicking it quits the game
@@ -176,6 +208,7 @@ def main():
                     if event.key==32:
                         paused=False
         pygame.display.flip()
+        fpsclock.tick(FPS)
 
 if __name__=="__main__":
     main()

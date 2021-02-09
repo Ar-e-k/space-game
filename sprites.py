@@ -4,15 +4,16 @@ import pygame
 
 class player:
 
-    def __init__(self, x, y, mass, thrust, size, map_size):
+    def __init__(self, x, y, health, mass, thrust, size, map_size):
         self.map_size=map_size
+        self.life=health
 
         self.x_cord=x
         self.y_cord=y
 
         self.vertical=0
         self.horizontal=0
-        self.modifier=1
+        self.modifier=15
 
         self.vertical_ac=0
         self.horizontal_ac=0
@@ -49,6 +50,13 @@ class player:
 
     def stop_fire(self):
         self.recoil=0
+
+    def loose_life(self):
+        self.life-=1
+        if self.life==0:
+            return False
+        else:
+            return True
 
     def return_box(self):
         box=pygame.Rect([self.x_cord, self.y_cord], self.size) # The actuall box
@@ -116,6 +124,7 @@ class gun:
         box=pygame.Rect(position, self.laser_size)
         return box
 
+
 class enemy:
 
     def __init__(self, health, speed, y_cord, x_cord, size):
@@ -126,6 +135,19 @@ class enemy:
 
     def move(self):
         self.cords[0]-=self.speed
+
+    def get_damage(self, damage):
+        self.health-=damage
+        if self.health<=0:
+            return False
+        else:
+            return True
+
+    def check_map(self):
+        if self.cords[0]<0-self.size[0]:
+            return True
+        else:
+            return False
 
     def return_box(self):
         box=pygame.Rect(self.cords, self.size) # The actuall box
