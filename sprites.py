@@ -23,6 +23,10 @@ class player:
 
         self.recoil=0
 
+        self.score=0
+        self.kills=0
+        self.damage=0
+
     def load_gun(self, gun):
         self.gun=gun
 
@@ -57,6 +61,17 @@ class player:
             return False
         else:
             return True
+
+    def gain_kills(self):
+        self.kills+=1
+        self.score+=1
+
+    def gain_score(self):
+        self.score+=1
+
+    def gain_damage(self):
+        self.damage+=self.gun.damage
+        self.score+=1
 
     def return_box(self):
         box=pygame.Rect([self.x_cord, self.y_cord], self.size) # The actuall box

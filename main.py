@@ -34,10 +34,11 @@ class game:
         self.iterate_enemies(fire_check)
         if fire_check:
             self.draw_fire()
+        self.update_score()
         return self.status
 
     def update_score(self):
-        pass
+        self.player.gain_score()
 
     def spawn_enemis(self):
         number=random()*100
@@ -99,6 +100,10 @@ class game:
         self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
         self.get_text(str("Raw Frame time: "+str(round(fps.get_rawtime(), 4))), [400, screen_y-150])
 
+        self.get_text(str("Score: "+str(self.player.score)), [1000, screen_y-100])
+        self.get_text(str("Kills: "+str(self.player.kills)), [1000, screen_y-150])
+        self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
+
     def get_text(self, text, pos, colour=[0,0,0]):
         acceleration=self._font.render(text, False, colour)
         self._screen.blit(acceleration, pos)
@@ -147,9 +152,11 @@ class game:
     def check_colisions_laser(self, laser_box, index, enemy, box):
         if box.colliderect(laser_box):
             alive=enemy.get_damage(self.player.gun.damage)
+            self.player.gain_damage()
             if alive:
                 pass
             else:
+                self.player.gain_kills()
                 self._enemies.pop(index)
 
     def end_game(self):
@@ -166,6 +173,7 @@ def main():
     player=sprites.player(100, 10, 3, 100000, 100, [200, 100], [screen_x, screen_y])
     basic_gun=sprites.gun(50, 10, [screen_x, 10], 200, 0.002)
     cleaner=sprites.gun(50, 10000, [screen_x, 2*screen_y], 0, 0)
+    front_recoil=sprites.gun(200, 5, [screen_x, 20], 100, -0.005)
     player.load_gun(basic_gun)
     play=game(screen, player)
     paused=False
