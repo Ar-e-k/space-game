@@ -4,7 +4,7 @@ import pygame
 
 class player:
 
-    def __init__(self, x, y, health, mass, thrust, size, map_size):
+    def __init__(self, x, y, health, mass, thrust, size, map_size, ship):
         self.map_size=map_size
         self.life=health
 
@@ -26,6 +26,9 @@ class player:
         self.score=0
         self.kills=0
         self.damage=0
+
+        self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
+        self.ship=pygame.transform.scale(self.ship, self.size)
 
     def load_gun(self, gun):
         self.gun=gun
@@ -75,7 +78,7 @@ class player:
 
     def return_box(self):
         box=pygame.Rect([self.x_cord, self.y_cord], self.size) # The actuall box
-        return box
+        return box, self.ship
 
     def return_gun_box(self):
         return self.gun.return_box([self.x_cord, self.y_cord], self.size)
@@ -139,7 +142,7 @@ class gun:
         return self.recoil
 
     def return_box(self, position, size):
-        position[0]+=(size[0]/2)
+        position[0]+=(size[0])
         position[1]+=(size[1]/2)-self.laser_size[1]/2
         box=pygame.Rect(position, self.laser_size)
         return box

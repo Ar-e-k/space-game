@@ -109,8 +109,9 @@ class game:
         self._screen.blit(acceleration, pos)
 
     def draw_player(self):
-        box=self.player.return_box()
+        box, ship=self.player.return_box()
         pygame.draw.rect(self._screen, [0,0,0], box)
+        self._screen.blit(ship, [self.player.x_cord, self.player.y_cord])
 
     def draw_fire(self):
         box=self.player.return_gun_box()
@@ -123,7 +124,7 @@ class game:
         self.get_text(str(str(health)), cords, [255,255,255])
 
     def iterate_enemies(self, fire_check):
-        player_box=self.player.return_box()
+        player_box, i=self.player.return_box()
         laser_box=self.player.return_gun_box()
         for index, enemy in enumerate(self._enemies):
             box=enemy.return_box()
@@ -142,6 +143,7 @@ class game:
             pass
 
     def check_colision(self, player_box, index, enemy, box):
+        player_box.colliderect(box)
         if player_box.colliderect(box):
             alive=self.player.loose_life()
             if alive:
@@ -170,11 +172,15 @@ def main():
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
 
     playing=True #Determines is the game on or not
-    player=sprites.player(100, 10, 3, 100000, 100, [200, 100], [screen_x, screen_y])
+    player=sprites.player(100, 10, 3, 100000, 100, [200, 150], [screen_x, screen_y], "Ship1.png")
+    #player2=sprites.player(100, 10, 3, 50000, 100, [150, 80], [screen_x, screen_y])
+    #stelth=sprites.player(100, 10, 1, 10000, 80, [50, 20], [screen_x, screen_y])
     basic_gun=sprites.gun(50, 10, [screen_x, 10], 200, 0.002)
     cleaner=sprites.gun(50, 10000, [screen_x, 2*screen_y], 0, 0)
     front_recoil=sprites.gun(200, 5, [screen_x, 20], 100, -0.005)
     player.load_gun(basic_gun)
+    #player2.load_gun(basic_gun)
+    #stelth.load_gun(front_recoil)
     play=game(screen, player)
     paused=False
 
