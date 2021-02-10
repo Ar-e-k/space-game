@@ -43,7 +43,7 @@ class player:
 
     def fire(self):
         if self.gun.check_fire():
-            self.recoil=0.005
+            self.recoil=self.gun.get_recoil()
             self.gun.fire()
             return True
         return None
@@ -86,7 +86,7 @@ class player:
 
 class gun:
 
-    def __init__(self, ammo, damage, size, reload):
+    def __init__(self, ammo, damage, size, reload, recoil):
         self.damage=damage
 
         self.max_ammo=ammo
@@ -96,6 +96,8 @@ class gun:
         self.max_reload=reload
 
         self.laser_size=size
+
+        self.recoil=recoil
 
     def reload(self):
         self.reloadTime=copy(self.max_reload)
@@ -118,9 +120,12 @@ class gun:
         if self.ammo==0:
             self.reload()
 
+    def get_recoil(self):
+        return self.recoil
+
     def return_box(self, position, size):
         position[0]+=(size[0]/2)
-        position[1]+=(size[1]/2)
+        position[1]+=(size[1]/2)-self.laser_size[1]/2
         box=pygame.Rect(position, self.laser_size)
         return box
 

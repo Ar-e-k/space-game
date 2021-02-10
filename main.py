@@ -99,8 +99,8 @@ class game:
         self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
         self.get_text(str("Raw Frame time: "+str(round(fps.get_rawtime(), 4))), [400, screen_y-150])
 
-    def get_text(self, text, pos):
-        acceleration=self._font.render(text, False, [0,0,0])
+    def get_text(self, text, pos, colour=[0,0,0]):
+        acceleration=self._font.render(text, False, colour)
         self._screen.blit(acceleration, pos)
 
     def draw_player(self):
@@ -111,8 +111,11 @@ class game:
         box=self.player.return_gun_box()
         pygame.draw.rect(self._screen, [125,0,0], box)
 
-    def draw_enemy(self, box):
+    def draw_enemy(self, box, enemy):
         pygame.draw.rect(self._screen, [0,0,0], box)
+        health=enemy.health
+        cords=enemy.cords
+        self.get_text(str(str(health)), cords, [255,255,255])
 
     def iterate_enemies(self, fire_check):
         player_box=self.player.return_box()
@@ -120,7 +123,7 @@ class game:
         for index, enemy in enumerate(self._enemies):
             box=enemy.return_box()
 
-            self.draw_enemy(box)
+            self.draw_enemy(box, enemy)
             self.check_colision(player_box, index, enemy, box)
             if fire_check:
                 self.check_colisions_laser(laser_box, index, enemy, box)
@@ -161,7 +164,9 @@ def main():
 
     playing=True #Determines is the game on or not
     player=sprites.player(100, 10, 3, 100000, 100, [200, 100], [screen_x, screen_y])
-    player.load_gun(sprites.gun(50, 4, [screen_x, 5], 200))
+    basic_gun=sprites.gun(50, 10, [screen_x, 10], 200, 0.002)
+    cleaner=sprites.gun(50, 10000, [screen_x, 2*screen_y], 0, 0)
+    player.load_gun(basic_gun)
     play=game(screen, player)
     paused=False
 
