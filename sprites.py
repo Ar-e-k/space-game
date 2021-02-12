@@ -4,16 +4,16 @@ import pygame
 
 class player:
 
-    def __init__(self, x, y, health, mass, thrust, size, map_size, ship):
+    def __init__(self, cords, health, mass, thrust, size, map_size, ship):
         self.map_size=map_size
         self.life=health
 
-        self.x_cord=x
-        self.y_cord=y
+        self.cords=cords
 
         self.vertical=0
         self.horizontal=0
         self.modifier=15
+        self.mass=mass
 
         self.vertical_ac=0
         self.horizontal_ac=0
@@ -34,8 +34,8 @@ class player:
         self.gun=gun
 
     def move(self):
-        self.x_cord+=(self.horizontal*self.modifier)
-        self.y_cord+=(self.vertical*self.modifier)
+        self.cords[0]+=(self.horizontal*self.modifier)
+        self.cords[1]+=(self.vertical*self.modifier)
         self.teleport()
 
     def update_velocity(self):
@@ -51,6 +51,7 @@ class player:
     def fire(self):
         if self.gun.check_fire():
             self.recoil=self.gun.get_recoil()
+            self.recoil/=self.mass
             self.gun.fire()
             return True
         return None
@@ -76,30 +77,51 @@ class player:
         self.damage+=self.gun.damage
         self.score+=1
 
-    def return_box(self):
-        box=pygame.Rect([self.x_cord, self.y_cord], self.size) # The actuall box
-        return box, self.ship
+    def return_cords(self):
+        return self.cords
+
+    '''def return_box(self):
+        #box=pygame.Rect(self.cords, self.size) # The actuall box
+        box=pygame.Rect(self.cords, [self.size[0]*4/9, self.size[1]])
+        box2=pygame.Rect([self.cords[0]+self.size[0]/3, self.cords[1]+self.size[1]/2-self.size[1]/5], [self.size[0]*2/3, self.size[1]*2/5])
+        return box, box2, self.ship'''
+
+    def return_img(self):
+        return self.ship
 
     def return_gun_box(self):
-        return self.gun.return_box([self.x_cord, self.y_cord], self.size)
+        return self.gun.return_box(self.cords, self.size)
 
     def teleport(self):
-        if self.x_cord>self.map_size[0]-self.size[0]:
-            self.x_cord=self.map_size[0]-self.size[0]
-        if self.x_cord<0:
-            self.x_cord=0
-        if self.y_cord>self.map_size[1]-self.size[1]:
-            self.y_cord=self.map_size[1]-self.size[1]
-        if self.y_cord<0:
-            self.y_cord=0
-        '''while self.x_cord>self.map_size[0]:
-            self.x_cord-=self.map_size[0]
-        while self.x_cord<0:
-            self.x_cord+=self.map_size[0]
-        while self.y_cord>self.map_size[1]:
-            self.y_cord-=self.map_size[1]
-        while self.y_cord<0:
-            self.y_cord+=self.map_size[1]'''
+        if self.cords[0]>self.map_size[0]-self.size[0]:
+            self.cords[0]=self.map_size[0]-self.size[0]
+        if self.cords[0]<0:
+            self.cords[0]=0
+        if self.cords[1]>self.map_size[1]-self.size[1]:
+            self.cords[1]=self.map_size[1]-self.size[1]
+        if self.cords[1]<0:
+            self.cords[1]=0
+        '''while self.cords[0]>self.map_size[0]:
+            self.cords[0]-=self.map_size[0]
+        while self.cords[0]<0:
+            self.cords[0]+=self.map_size[0]
+        while self.cords[1]>self.map_size[1]:
+            self.cords[1]-=self.map_size[1]
+        while self.cords[1]<0:
+            self.cords[1]+=self.map_size[1]'''
+
+    def overspeed(self):
+        check=[
+            self.cords[0]==0 and self.horizontal<-1,
+            self.cords[1]==0 and self.vertical<-1,
+            self.cords[1]-self.size[1]==self.map_size[1] and self.vertical> 1
+            ]
+        if True in check:
+            self.vertical=0
+            self.horizontal=0
+            print("here")
+            return self.loose_life()
+        return True
 
 
 class gun:
@@ -141,7 +163,11 @@ class gun:
     def get_recoil(self):
         return self.recoil
 
-    def return_box(self, position, size):
+    def return_damage(self):
+        return self.damage
+
+    def return_box(self, pos, size):
+        position=pos.copy()
         position[0]+=(size[0])
         position[1]+=(size[1]/2)-self.laser_size[1]/2
         box=pygame.Rect(position, self.laser_size)
@@ -150,11 +176,14 @@ class gun:
 
 class enemy:
 
-    def __init__(self, health, speed, y_cord, x_cord, size):
+    def __init__(self, health, speed, cords, size):
         self.health=health
         self.speed=speed
-        self.cords=[x_cord, y_cord]
+        self.cords=cords
         self.size=size
+
+        self.img=pygame.image.load("Models/Enemies/try.png").convert_alpha()
+        self.img=pygame.transform.scale(self.img, self.size)
 
     def move(self):
         self.cords[0]-=self.speed
@@ -172,6 +201,12 @@ class enemy:
         else:
             return False
 
+    def return_cords(self):
+        return self.cords
+
     def return_box(self):
         box=pygame.Rect(self.cords, self.size) # The actuall box
         return box
+
+    def return_img(self):
+        return self.img
