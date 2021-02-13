@@ -30,7 +30,17 @@ class player:
         self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
         self.ship=pygame.transform.scale(self.ship, self.size)
 
-        self.gun_places=gun_places
+
+        self.gun_places=[
+            self.normalise_place(gun_places[0]),
+            [
+                self.normalise_place(gun_places[1][0]),
+                self.normalise_place(gun_places[1][1])
+            ]
+        ]
+
+    def normalise_place(self, place):
+        return [place[0]*self.size[0], place[1]*self.size[1]]
 
     def load_gun(self, gune):
         self.gun=gun(gune, self.gun_places[0])
@@ -84,11 +94,11 @@ class player:
     def return_cords(self):
         return self.cords
 
-    '''def return_box(self):
-        #box=pygame.Rect(self.cords, self.size) # The actuall box
-        box=pygame.Rect(self.cords, [self.size[0]*4/9, self.size[1]])
-        box2=pygame.Rect([self.cords[0]+self.size[0]/3, self.cords[1]+self.size[1]/2-self.size[1]/5], [self.size[0]*2/3, self.size[1]*2/5])
-        return box, box2, self.ship'''
+    def return_box(self):
+        box=pygame.Rect(self.cords, self.size) # The actuall box
+        #box=pygame.Rect(self.cords, [self.size[0]*4/9, self.size[1]])
+        #box2=pygame.Rect([self.cords[0]+self.size[0]/3, self.cords[1]+self.size[1]/2-self.size[1]/5], [self.size[0]*2/3, self.size[1]*2/5])
+        return box#, box2, self.ship'''
 
     def return_img(self):
         return self.ship
@@ -136,8 +146,6 @@ class gun:
     def __init__(self, lis, place):
         ammo, damage, size, reload, recoil=lis
 
-        self.place=place
-
         self.damage=damage
 
         self.max_ammo=ammo
@@ -149,6 +157,8 @@ class gun:
         self.laser_size=size
 
         self.recoil=recoil
+
+        self.place=place
 
     def reload(self):
         self.reloadTime=copy(self.max_reload)
@@ -186,7 +196,7 @@ class secondary_gun(gun):
 
     def return_box(self, pos):
         pos1=[self.place[0][0]+pos[0], self.place[0][1]+pos[1]]
-        pos2=[self.place[1][0]+pos[0], self.place[1][1]+pos[1]]
+        pos2=[self.place[1][0]+pos[0], self.place[1][1]+pos[1]-self.laser_size[1]]
         box=pygame.Rect(pos1, self.laser_size)
         box2=pygame.Rect(pos2, self.laser_size)
         return [box, box2]

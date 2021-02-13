@@ -12,8 +12,8 @@ class game:
         self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
 
         self._enemies=[]
-        self._enemy_probability=99.8
-        #self._enemy_probability=99.5
+        #self._enemy_probability=99.8
+        self._enemy_probability=99.5
 
         self.status=True
 
@@ -60,7 +60,7 @@ class game:
         self.player.gain_score()
 
     def spawn_enemis(self):
-        number=random()*1000
+        number=random()*100
         if number>self._enemy_probability:
             box1=sprites.enemy(100, 3, [screen_x-100, randint(0, screen_y-100)], [100, 100], "try.png")
             self._enemies.append(box1)
@@ -164,7 +164,7 @@ class game:
         self.get_text(str(str(health)), cords, [0,0,0])
 
     def iterate_enemies(self, fire_check, s_fire_check):
-        #player_box, player_box1, j=self.player.return_box()
+        player_box=self.player.return_box()
         player=self.player.return_img()
         player=pygame.mask.from_surface(player)
         player_cords=self.player.return_cords()
@@ -175,7 +175,7 @@ class game:
             box=enemy.return_box()
 
             self.draw_enemy(box, enemy)
-            self.check_colision(player, player_cords, index, enemy, box)
+            self.check_colision(player, player_cords, index, enemy, box, player_box)
             if fire_check:
                 damage=self.player.gun.return_damage()
                 self.check_colisions_laser(laser_box[0], index, enemy, box, damage)
@@ -193,7 +193,11 @@ class game:
         else:
             pass
 
-    def check_colision(self, player, player_cords, index, enemy, box):
+    def check_colision(self, player, player_cords, index, enemy, box, player_box):
+        if box.colliderect(player_box):
+            pass
+        else:
+            return None
         enemy_cords=enemy.return_cords()
         ofset=(int(enemy_cords[0]-player_cords[0]), int(enemy_cords[1]-player_cords[1]))
 
@@ -237,21 +241,32 @@ def main():
     playing=True #Determines is the game on or not
     paused=False
 
-    player=sprites.player([100, 10], 10, 80000, 200, [200, 150], [screen_x, screen_y], "Ship1.png", [[200, 75], [[70, 17], [70, 133]]])
+    ship1_gun_model=[
+        [1, 0.5],
+        [
+            [0.35, 0.11+(1/3*0.01)],
+            [0.35, 0.88+(2/3*0.01)]
+        ]
+    ]
+
+    player=sprites.player([100, 10], 3, 80000, 200, [200, 150], [screen_x, screen_y], "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
+    player2=sprites.player([100, 10], 10, 80000, 200, [104, 78], [screen_x, screen_y], "Ship1.png", ship1_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
     #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
     #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
     basic_gun=(50, 10, [screen_x, 10], 200, 400)
     cleaner=(50, 10000, [screen_x, 2*screen_y], 0, 0)
-    front_recoil=(200, 5, [screen_x, 2], 100, -50)
+    front_recoil=(200, 5, [screen_x, 4], 100, -50)
     op_gun=(200, 20, [screen_x, 20], 100, -50)
     mati_gun=(69, 20, [screen_x, 45], 100, -70)
 
     player.load_gun(basic_gun)
+    player2.load_gun(basic_gun)
     #stelth.load_gun(front_recoil)
     #mati.load_gun(mati_gun)
 
-    player.load_S_gun(front_recoil)
+    #player.load_S_gun(front_recoil)
+    player2.load_S_gun(front_recoil)
 
     play=game(screen, player)
 
