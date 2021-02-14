@@ -4,7 +4,9 @@ import pygame
 
 class player:
 
-    def __init__(self, cords, health, mass, thrust, size, map_size, ship, gun_places):
+    def __init__(self, stats):
+        cords, health, mass, thrust, size, map_size, ship, gun_places=stats
+        
         self.map_size=map_size
         self.life=health
 
@@ -192,6 +194,7 @@ class gun:
         box=pygame.Rect(pos, self.laser_size)
         return [box]
 
+
 class secondary_gun(gun):
 
     def return_box(self, pos):
@@ -200,6 +203,7 @@ class secondary_gun(gun):
         box=pygame.Rect(pos1, self.laser_size)
         box2=pygame.Rect(pos2, self.laser_size)
         return [box, box2]
+
 
 class enemy:
 
