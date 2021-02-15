@@ -102,8 +102,15 @@ class menu:
                 [0.35, 0.88+(2/3*0.01)]
             ]
         ]
+        ship2_gun_model=[
+            [0.86, 0.5],
+            [
+                [0.56, 0.26],
+                [0.56, 0.74]
+            ]
+        ]
 
-        ship1=([100, 10], 3, 80000, 200, [200, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
+        ship1=([100, 10], 3, 80000, 200, [200, 150], self.screen_size, "Ship2.png", ship2_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
         ship2=([100, 10], 10, 80000, 200, [104, 78], self.screen_size, "Ship1.png", ship1_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
@@ -227,7 +234,6 @@ class menu:
                     if event.key==27:
                         end=False
                         self.main_menu()
-
 
     def load_result(self, name):
         name+=".gameres"
@@ -407,18 +413,20 @@ class game:
         laser_box=self.player.return_gun_box()
         s_laser_box=self.player.return_S_gun_box()
         for index, enemy in enumerate(self._enemies):
+            alive=True
             box=enemy.return_box()
 
             self.draw_enemy(box, enemy)
             self.check_colision(player, player_cords, index, enemy, box, player_box)
             if fire_check:
                 damage=self.player.gun.return_damage()
-                self.check_colisions_laser(laser_box[0], index, enemy, box, damage)
+                alive=self.check_colisions_laser(laser_box[0], index, enemy, box, damage)
 
-            if s_fire_check:
+            if s_fire_check and alive:
                 damage=self.player.secondary_gun.return_damage()/5
-                self.check_colisions_laser(s_laser_box[0], index, enemy, box, damage)
-                self.check_colisions_laser(s_laser_box[1], index, enemy, box, damage)
+                alive=self.check_colisions_laser(s_laser_box[0], index, enemy, box, damage)
+                if alive:
+                    self.check_colisions_laser(s_laser_box[1], index, enemy, box, damage)
 
             self.delete_enemies(index, enemy)
 
@@ -454,13 +462,14 @@ class game:
             alive=enemy.get_damage(damage)
             self.player.gain_damage(damage)
             if alive:
-                pass
+                return True
             else:
                 self.player.gain_kills()
                 try:
                     self._enemies.pop(index)
                 except IndexError:
                     pass
+                return False
 
     def end_game(self):
         #self.end_screen()
