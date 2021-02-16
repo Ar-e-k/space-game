@@ -11,6 +11,9 @@ import sprites
 class menu:
 
     def __init__(self, screen, screen_size):
+        pickle.dump({}, open('Scores/ship2.scores', "wb"))
+        pickle.dump({}, open('Scores/ship1.scores', "wb"))
+
         self._screen=screen
         self.screen_size=screen_size
 
@@ -228,6 +231,8 @@ class menu:
         pygame.display.flip()
         end=True
 
+        self.save_result(play.score, ship, gun, secondary_gun)
+
         while end:
             for event in pygame.event.get():
                 if event.type==pygame.KEYDOWN:
@@ -235,9 +240,19 @@ class menu:
                         end=False
                         self.main_menu()
 
-    def load_result(self, name):
+    def save_result(self, score, ship, gun, s_gun):
+        print(ship[6][:-4])
+        name=ship[6][:-4]+".scores"
+        name=name.lower()
+        print(name)
+        results=pickle.load(open("Scores/"+name, "rb"))
+        print(results)
+        results[score]=[gun, s_gun]
+        pickle.dump(results, open('Scores/'+name, "wb"))
+
+    def load_result(self):
         name+=".gameres"
-        results=pickle.load(open('saves/'+name, 'rb'))
+        #results=pickle.load(open(, 'rb'))
 
     def exit(self):
         pygame.quit()
@@ -303,7 +318,7 @@ class game:
     def spawn_enemis(self):
         number=random()*100
         if number>self._enemy_probability:
-            box1=sprites.enemy(100, 3, [screen_x-100, randint(0, screen_y-100)], [100, 100], "try.png")
+            box1=sprites.enemy(100, 3, [screen_x-100, randint(0, screen_y-100)], [100, 100], "Meteor.png")
             self._enemies.append(box1)
         else:
             self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
@@ -482,10 +497,6 @@ class game:
         self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-100, screen_y/2-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-100, screen_y/2-50])
         self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-100, screen_y/2])
-
-    def save_result(self, name):
-        name+=(".gameres")
-        pickle.dump(results, open('saves/'+name, "wb" ))
 
 
 def main():
