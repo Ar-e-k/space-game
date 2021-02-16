@@ -98,23 +98,23 @@ class menu:
         self.basic_menu(self.actions, action)
 
     def define_ships(self):
-        ship1_gun_model=[
+        ship2_gun_model=[
             [1, 0.5],
             [
                 [0.35, 0.11+(1/3*0.01)],
                 [0.35, 0.88+(2/3*0.01)]
             ]
         ]
-        ship2_gun_model=[
-            [0.86, 0.5],
+        ship1_gun_model=[
+            [0.86, 0.494],
             [
-                [0.56, 0.26],
-                [0.56, 0.74]
+                [0.54, 0.29],
+                [0.54, 0.69]
             ]
         ]
 
-        ship1=([100, 10], 3, 80000, 200, [200, 150], self.screen_size, "Ship1.png", ship2_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 10, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship1_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship1=([100, 10], 3, 80000, 200, [200, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 10, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
@@ -220,6 +220,10 @@ class menu:
                     elif event.key==107:
                         s_fire=False
             while paused:
+                direction[0]=0
+                direction[1]=0
+                fire=False
+                s_fire=False
                 for event in pygame.event.get():
                     if event.type==pygame.KEYDOWN:
                         if event.key==32:
@@ -241,12 +245,12 @@ class menu:
                         self.main_menu()
 
     def save_result(self, score, ship, gun, s_gun):
-        print(ship[6][:-4])
+        #print(ship[6][:-4])
         name=ship[6][:-4]+".scores"
         name=name.lower()
-        print(name)
+        #print(name)
         results=pickle.load(open("Scores/"+name, "rb"))
-        print(results)
+        #print(results)
         results[score]=[gun, s_gun]
         pickle.dump(results, open('Scores/'+name, "wb"))
 
@@ -417,7 +421,7 @@ class game:
         self._screen.blit(enemy.img, enemy.cords)
         health=enemy.health
         cords=enemy.cords
-        self.get_text(str(str(health)), cords, [0,0,0])
+        self.get_text(str(str(health)), cords, [255,255,255])
 
     def iterate_enemies(self, fire_check, s_fire_check):
         player_box=self.player.return_box()
