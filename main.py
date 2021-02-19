@@ -21,6 +21,7 @@ class menu:
 
         self.ships=self.define_ships()
         self.guns=self.define_guns()
+        self.enemies=self.define_enemies()
 
         self.ship_selected=None
         self.gun_selected=None
@@ -113,8 +114,8 @@ class menu:
             ]
         ]
 
-        ship1=([100, 10], 3, 80000, 200, [200, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 10, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship1=([100, 10], 3, 80000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 4, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
@@ -127,10 +128,18 @@ class menu:
             "Front recoil":(200, 5, [screen_x, 4], 100, -50),
             "Op gun":(200, 20, [screen_x, 20], 100, -50),
             "Mati gun":(69, 20, [screen_x, 45], 100, -70),
+            "69 gun":(69, 69, [screen_x, 69], 69, 69),
             "No gun":(0, 0, [screen_x, 0], 1, 0)
         }
 
         return guns
+
+    def define_enemies(self):
+        enemies={
+            "Meteor":(100, 3, [100, 100], "Meteor.png", self.screen_size[0], self.screen_size[1]),
+            "Meteor2":(200, 1, [200, 200], "Meteor.png", self.screen_size[0], self.screen_size[1])
+        }
+        return enemies
 
     def pick_menu(self, feed, value):
         action=lambda key:value(key)
@@ -176,7 +185,7 @@ class menu:
         playing=True #Determines is the game on or not
         paused=False
 
-        play=game(self._screen, player)
+        play=game(self._screen, player, 1, self.enemies)
 
         direction=[0, 0]
         fire=False
@@ -265,19 +274,25 @@ class menu:
 
 class game:
 
-    def __init__(self, screen, player):
+    def __init__(self, screen, player, hardness, enemies):
         self._screen=screen
         self.player=player
 
         self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
 
         self._enemies=[]
+        self._possible_enemies=enemies
         #self._enemy_probability=99.8
-        self._enemy_probability=99.5
+        self._enemy_probability={}
+        for enemy in self._possible_enemies.keys():
+            self._enemy_probability[enemy]=99.8
 
         self.status=True
 
+        self.hardness=hardness
+
         self.score=0
+        self.score_change=0
 
     def update_acceleration(self, dir):
         self.player.horixontal_thrust(dir[0])
@@ -312,24 +327,51 @@ class game:
         return self.status
 
     def update_score(self):
+        self.hardness+=0.0001
+
         score=1
         pos=self.player.return_cords()
         score+=(0.5*screen_x-abs(pos[0]-0.5*screen_x))
         score+=(0.5*screen_y-abs(pos[1]-0.5*screen_y))
-        self.score+=round(score/1000, 1)
+        self.score_change=(round(score/1000, 1)**1.5)*0.5
+        self.score+=self.score_change
         self.player.gain_score()
 
     def spawn_enemis(self):
-        number=random()*100
-        if number>self._enemy_probability:
-            box1=sprites.enemy(100, 3, [screen_x-100, randint(0, screen_y-100)], [100, 100], "Meteor.png")
-            self._enemies.append(box1)
-        else:
-            self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
+        for enemy, value in self._enemy_probability.items():
+            #print(value)
+            value=(100-value+self.hardness)/len(list(self._enemy_probability.keys()))
+            #print(value)
+            number=random()*100
+            if number<value:
+                stats=deepcopy(self._possible_enemies[enemy])
+                box1=sprites.enemy(stats)
+                if self.check_spawn_place(box1):
+                    self._enemies.append(box1)
+                    break
+                else:
+                    pass
+            else:
+                pass
+                #self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
 
     def move_enemies(self):
         for enemy in self._enemies:
             enemy.move()
+
+    def check_spawn_place(self, enemy_check):
+        #cord_check=enemy_check.return_cords()[1]
+        #size_check=enemy_check.return_cords()[1]
+        box_check=enemy_check.return_box()
+        for enemy in self._enemies:
+            cords=enemy.return_cords()
+            size=enemy.return_size()
+            #print(cords[0]-size[0])
+            if cords[0]+size[0]>screen_x:
+                box=enemy.return_box()
+                if box.colliderect(box_check):
+                    return False
+        return True
 
     def check_fire(self, fire, gun):
         if gun=="F":
@@ -394,6 +436,10 @@ class game:
         self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
         self.get_text(str("Raw Frame time: "+str(round(fps.get_rawtime(), 4))), [400, screen_y-150])
 
+        value=(100-self._enemy_probability["Meteor"]+self.hardness)/len(list(self._enemy_probability.keys()))
+        self.get_text(str("Probability: "+str(round(value, 4))), [400, screen_y-100])
+
+        self.get_text(str("Score change: "+str(round(self.score_change, 2))), [1000, screen_y-50])
         self.get_text(str("Score: "+str(round(self.score, 2))), [1000, screen_y-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [1000, screen_y-150])
         self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
@@ -489,6 +535,8 @@ class game:
                 except IndexError:
                     pass
                 return False
+        else:
+            return True
 
     def end_game(self):
         #self.end_screen()

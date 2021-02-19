@@ -1,12 +1,13 @@
 from copy import copy
 from time import sleep
 import pygame
+from random import randint
 
 class player:
 
     def __init__(self, stats):
         cords, health, mass, thrust, size, map_size, ship, gun_places=stats
-        
+
         self.map_size=map_size
         self.life=health
 
@@ -207,11 +208,16 @@ class secondary_gun(gun):
 
 class enemy:
 
-    def __init__(self, health, speed, cords, size, img):
+    def __init__(self, inputs):
+        health, speed, size, img, screen_x, screen_y=inputs
+        #print(health)
+        #print(speed)
+
         self.health=health
         self.speed=speed
-        self.cords=cords
         self.size=size
+
+        self.cords=[screen_x-100, randint(0, screen_y-self.size[1])]
 
         self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
         self.img=pygame.transform.scale(self.img, self.size)
@@ -231,6 +237,9 @@ class enemy:
             return True
         else:
             return False
+
+    def return_size(self):
+        return self.size
 
     def return_cords(self):
         return self.cords
