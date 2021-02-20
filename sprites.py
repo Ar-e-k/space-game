@@ -1,5 +1,4 @@
 from copy import copy
-from time import sleep
 import pygame
 from random import randint
 
@@ -32,7 +31,6 @@ class player:
 
         self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
         self.ship=pygame.transform.scale(self.ship, self.size)
-
 
         self.gun_places=[
             self.normalise_place(gun_places[0]),
@@ -217,7 +215,7 @@ class enemy:
         self.speed=speed
         self.size=size
 
-        self.cords=[screen_x-100, randint(0, screen_y-self.size[1])]
+        self.cords=[screen_x+self.size[0], randint(0, screen_y-self.size[1])]
 
         self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
         self.img=pygame.transform.scale(self.img, self.size)

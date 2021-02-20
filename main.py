@@ -1,10 +1,8 @@
 import pygame
-import math
 import sys
 import pickle
 from copy import deepcopy
 from random import randint, random, choice
-
 import sprites
 
 
@@ -75,9 +73,6 @@ class menu:
         return buttons_on_screen
 
     def basic_menu(self, options, action):
-        rec=pygame.Rect([0, 0], [screen_x, screen_y])
-        pygame.draw.rect(self._screen, [0,0,0], rec)
-
         running=True
 
         buttons=self.buttons(list(options.keys()))
@@ -94,9 +89,22 @@ class menu:
     def main_menu(self):
         pygame.mouse.set_visible(True)
 
+        rec=pygame.Rect([0, 0], [screen_x, screen_y])
+        pygame.draw.rect(self._screen, [0,0,0], rec)
+
         action=lambda key:self.actions[key]()
 
+        self.display_parts_picked()
+
         self.basic_menu(self.actions, action)
+
+    def display_parts_picked(self):
+        texts=["Ship: "+str(self.ship_selected), "Gun: "+str(self.gun_selected), "Second gun: "+str(self.secondary_gun_selected)]
+        for i in range(3):
+            text=texts[i]
+            pos=[self.screen_size[0]/20, self.screen_size[1]/2+((i-4)*self.screen_size[1]/16)]
+            text=self._font.render(text, False, [255,255,255])
+            self._screen.blit(text, pos)
 
     def define_ships(self):
         ship2_gun_model=[
@@ -144,39 +152,42 @@ class menu:
     def pick_menu(self, feed, value):
         action=lambda key:value(key)
 
+        rec=pygame.Rect([0, 0], [screen_x, screen_y])
+        pygame.draw.rect(self._screen, [0,0,0], rec)
+
         self.basic_menu(feed, action)
 
     def pick_ship(self, key):
-        self.ship_selected=self.ships[key]
+        self.ship_selected=key
         self.main_menu()
 
     def pick_gun(self, key):
-        self.gun_selected=self.guns[key]
+        self.gun_selected=key
         self.main_menu()
 
     def pick_secondary_gun(self, key):
-        self.secondary_gun_selected=self.guns[key]
+        self.secondary_gun_selected=key
         self.main_menu()
 
     def check_game(self):
         if self.ship_selected==None:
-            ship_selected=choice(list(self.ships.values()))
+            ship_selected=choice(list(self.ships.keys()))
         else:
             ship_selected=self.ship_selected
         if self.gun_selected==None:
-            gun_selected=choice(list(self.guns.values()))
+            gun_selected=choice(list(self.guns.keys()))
         else:
             gun_selected=self.gun_selected
 
         self.infinite_runner(ship_selected, gun_selected, self.secondary_gun_selected)
 
     def infinite_runner(self, ship, gun, secondary_gun=None):
-        ship_s=deepcopy(ship)
+        ship_s=deepcopy(self.ships[ship])
         player=sprites.player(ship_s)
 
-        player.load_gun(gun)
+        player.load_gun(self.guns[gun])
         if secondary_gun!=None:
-            player.load_S_gun(secondary_gun)
+            player.load_S_gun(self.guns[secondary_gun])
         else:
             player.load_S_gun(self.guns["No gun"])
 
@@ -255,7 +266,7 @@ class menu:
 
     def save_result(self, score, ship, gun, s_gun):
         #print(ship[6][:-4])
-        name=ship[6][:-4]+".scores"
+        name=ship+".scores"
         name=name.lower()
         #print(name)
         results=pickle.load(open("Scores/"+name, "rb"))
@@ -284,8 +295,11 @@ class game:
         self._possible_enemies=enemies
         #self._enemy_probability=99.8
         self._enemy_probability={}
+        i=0
         for enemy in self._possible_enemies.keys():
-            self._enemy_probability[enemy]=99.8
+            self._enemy_probability[enemy]=99.8+i
+            i+=0.5
+            self._enemies.append([])
 
         self.status=True
 
@@ -309,7 +323,6 @@ class game:
         fire_check=self.check_fire(fire, "F")
         s_fire_check=self.check_fire(s_fire, "S")
 
-        self.move_enemies()
         self.draw_background(fps)
         self.draw_player()
 
@@ -338,39 +351,38 @@ class game:
         self.player.gain_score()
 
     def spawn_enemis(self):
+        enemy_type=0
         for enemy, value in self._enemy_probability.items():
             #print(value)
             value=(100-value+self.hardness)/len(list(self._enemy_probability.keys()))
             #print(value)
             number=random()*100
             if number<value:
-                stats=deepcopy(self._possible_enemies[enemy])
-                box1=sprites.enemy(stats)
-                if self.check_spawn_place(box1):
-                    self._enemies.append(box1)
-                    break
-                else:
-                    pass
+                self.spawn_enemy(enemy, enemy_type)
+                #break
             else:
                 pass
                 #self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
+            enemy_type+=1
 
-    def move_enemies(self):
-        for enemy in self._enemies:
-            enemy.move()
+    def spawn_enemy(self, enemy, enemy_type):
+        stats=deepcopy(self._possible_enemies[enemy])
+        box1=sprites.enemy(stats)
+        if self.check_spawn_place(box1):
+            self._enemies[enemy_type].append(box1)
+        else:
+            print("spawn avoided")
 
     def check_spawn_place(self, enemy_check):
-        #cord_check=enemy_check.return_cords()[1]
-        #size_check=enemy_check.return_cords()[1]
         box_check=enemy_check.return_box()
-        for enemy in self._enemies:
-            cords=enemy.return_cords()
-            size=enemy.return_size()
-            #print(cords[0]-size[0])
-            if cords[0]+size[0]>screen_x:
-                box=enemy.return_box()
-                if box.colliderect(box_check):
-                    return False
+        for enemies in self._enemies:
+            for enemy in enemies:
+                cords=enemy.return_cords()
+                size=enemy.return_size()
+                if cords[0]+size[0]>screen_x:
+                    box=enemy.return_box()
+                    if box.colliderect(box_check):
+                        return False
         return True
 
     def check_fire(self, fire, gun):
@@ -405,6 +417,8 @@ class game:
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [0,0,0], rec)
 
+        return None
+
         ac=[
             self.player.vertical_ac,
             self.player.horizontal_ac
@@ -430,7 +444,7 @@ class game:
         health=self.player.life
         self.get_text(str("health: "+str(health)), [0, screen_y-50])
 
-        self.get_text(str("enemies: "+str(len(self._enemies))), [0, 150])
+        self.get_text(str("enemies: "+str(len(self._enemies[0])+len(self._enemies[1]))), [0, 150])
 
         self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [0, screen_y-100])
         self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
@@ -445,8 +459,8 @@ class game:
         self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
 
     def get_text(self, text, pos, colour=[255,255,255]):
-        acceleration=self._font.render(text, False, colour)
-        self._screen.blit(acceleration, pos)
+        text=self._font.render(text, False, colour)
+        self._screen.blit(text, pos)
 
     def draw_player(self):
         ship=self.player.return_img()
@@ -477,31 +491,34 @@ class game:
 
         laser_box=self.player.return_gun_box()
         s_laser_box=self.player.return_S_gun_box()
-        for index, enemy in enumerate(self._enemies):
-            alive=True
-            box=enemy.return_box()
+        for index, enemies in enumerate(self._enemies):
+            for index2, enemy in enumerate(enemies):
+                enemy.move()
 
-            self.draw_enemy(box, enemy)
-            self.check_colision(player, player_cords, index, enemy, box, player_box)
-            if fire_check:
-                damage=self.player.gun.return_damage()
-                alive=self.check_colisions_laser(laser_box[0], index, enemy, box, damage)
+                alive=True
+                box=enemy.return_box()
 
-            if s_fire_check and alive:
-                damage=self.player.secondary_gun.return_damage()/5
-                alive=self.check_colisions_laser(s_laser_box[0], index, enemy, box, damage)
-                if alive:
-                    self.check_colisions_laser(s_laser_box[1], index, enemy, box, damage)
+                self.draw_enemy(box, enemy)
+                self.check_colision(player, player_cords, index, index2, enemy, box, player_box)
+                if fire_check:
+                    damage=self.player.gun.return_damage()
+                    alive=self.check_colisions_laser(laser_box[0], index, index2, enemy, box, damage)
 
-            self.delete_enemies(index, enemy)
+                if s_fire_check and alive:
+                    damage=self.player.secondary_gun.return_damage()/5
+                    alive=self.check_colisions_laser(s_laser_box[0], index, index2, enemy, box, damage)
+                    if alive:
+                        self.check_colisions_laser(s_laser_box[1], index, index2, enemy, box, damage)
 
-    def delete_enemies(self, index, enemy):
+                self.delete_enemies(index, index2, enemy)
+
+    def delete_enemies(self, index, index2, enemy):
         if enemy.check_map():
-            self._enemies.pop(index)
+            self._enemies[index].pop(index2)
         else:
             pass
 
-    def check_colision(self, player, player_cords, index, enemy, box, player_box):
+    def check_colision(self, player, player_cords, index, index2, enemy, box, player_box):
         if box.colliderect(player_box):
             pass
         else:
@@ -515,14 +532,14 @@ class game:
         if player.overlap(enemy_mask, ofset)!=None:
             alive=self.player.loose_life()
             if alive:
-                self._enemies.pop(index)
+                self._enemies[index].pop(index2)
                 pass
             else:
                 self.end_game()
 
         #if player_box.colliderect(box) or player_box1.colliderect(box):
 
-    def check_colisions_laser(self, laser_box, index, enemy, box, damage):
+    def check_colisions_laser(self, laser_box, index, index2, enemy, box, damage):
         if box.colliderect(laser_box):
             alive=enemy.get_damage(damage)
             self.player.gain_damage(damage)
@@ -531,12 +548,14 @@ class game:
             else:
                 self.player.gain_kills()
                 try:
-                    self._enemies.pop(index)
+                    self._enemies[index].pop(index2)
                 except IndexError:
                     pass
                 return False
         else:
             return True
+
+
 
     def end_game(self):
         #self.end_screen()
