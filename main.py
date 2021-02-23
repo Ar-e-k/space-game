@@ -2,11 +2,14 @@ import pygame
 import sys
 import pickle
 from copy import deepcopy
-from random import randint, random, choice
+import random
 import sprites
+import inspect
+
+#random.seed(1)
 
 
-class menu:
+class Menu:
 
     def __init__(self, screen, screen_size):
         pickle.dump({}, open('Scores/ship2.scores', "wb"))
@@ -26,7 +29,8 @@ class menu:
         self.secondary_gun_selected=None
 
         self.actions={
-            "New game":self.check_game,
+            "New game":lambda:self.check_game(self.infinite_runner_init),
+            "Levels":lambda:self.check_game(self.level_rnner_init),
             "Select ship":lambda:self.pick_menu(self.ships, self.pick_ship),
             "Select gun":lambda:self.pick_menu(self.guns, self.pick_gun),
             "Select secondary gun":lambda:self.pick_menu(self.guns, self.pick_secondary_gun),
@@ -169,34 +173,46 @@ class menu:
         self.secondary_gun_selected=key
         self.main_menu()
 
-    def check_game(self):
+    def check_game(self, game):
+        random.seed()
+
         if self.ship_selected==None:
-            ship_selected=choice(list(self.ships.keys()))
+            ship_selected=random.choice(list(self.ships.keys()))
         else:
             ship_selected=self.ship_selected
         if self.gun_selected==None:
-            gun_selected=choice(list(self.guns.keys()))
+            gun_selected="Basic gun"
         else:
             gun_selected=self.gun_selected
 
-        self.infinite_runner(ship_selected, gun_selected, self.secondary_gun_selected)
-
-    def infinite_runner(self, ship, gun, secondary_gun=None):
-        ship_s=deepcopy(self.ships[ship])
+        ship_s=deepcopy(self.ships[ship_selected])
         player=sprites.player(ship_s)
 
-        player.load_gun(self.guns[gun])
-        if secondary_gun!=None:
-            player.load_S_gun(self.guns[secondary_gun])
+        player.load_gun(self.guns[gun_selected])
+        if self.secondary_gun_selected!=None:
+            player.load_S_gun(self.guns[self.secondary_gun])
         else:
             player.load_S_gun(self.guns["No gun"])
 
+        game(player)
+
+    def infinite_runner_init(self, player):
+        seed=random.randrange(sys.maxsize)
+        play=Game(self._screen, player, 1, self.enemies, seed)
+
+        self.game(play)
+
+    def level_rnner_init(self, player):
+        aim=Aim(kills=10)
+        play=Level(self._screen, player, 1, self.enemies, 1, aim=aim)
+
+        self.game(play)
+
+    def game(self, play):
         pygame.mouse.set_visible(False)
 
         playing=True #Determines is the game on or not
         paused=False
-
-        play=game(self._screen, player, 1, self.enemies)
 
         direction=[0, 0]
         fire=False
@@ -255,7 +271,7 @@ class menu:
         pygame.display.flip()
         end=True
 
-        self.save_result(play.score, ship, gun, secondary_gun)
+        #self.save_result(play.score, ship, gun, secondary_gun)
 
         while end:
             for event in pygame.event.get():
@@ -265,12 +281,9 @@ class menu:
                         self.main_menu()
 
     def save_result(self, score, ship, gun, s_gun):
-        #print(ship[6][:-4])
         name=ship+".scores"
         name=name.lower()
-        #print(name)
         results=pickle.load(open("Scores/"+name, "rb"))
-        #print(results)
         results[score]=[gun, s_gun]
         pickle.dump(results, open('Scores/'+name, "wb"))
 
@@ -283,9 +296,16 @@ class menu:
         sys.exit()
 
 
-class game:
+class Game:
 
-    def __init__(self, screen, player, hardness, enemies):
+    def __init__(self, screen, player, hardness, enemies, seed):
+        self.seed=seed
+        random.seed(self.seed)
+
+        self.code=""
+        for i in range(5):
+            self.code+=str(random.randint(0, 9))
+
         self._screen=screen
         self.player=player
 
@@ -307,6 +327,7 @@ class game:
 
         self.score=0
         self.score_change=0
+        self.distanse=0
 
     def update_acceleration(self, dir):
         self.player.horixontal_thrust(dir[0])
@@ -342,6 +363,8 @@ class game:
     def update_score(self):
         self.hardness+=0.0001
 
+        self.distanse+=1
+
         score=1
         pos=self.player.return_cords()
         score+=(0.5*screen_x-abs(pos[0]-0.5*screen_x))
@@ -353,22 +376,20 @@ class game:
     def spawn_enemis(self):
         enemy_type=0
         for enemy, value in self._enemy_probability.items():
-            #print(value)
             value=(100-value+self.hardness)/len(list(self._enemy_probability.keys()))
-            #print(value)
-            number=random()*100
+            number=random.random()*100
             if number<value:
                 self.spawn_enemy(enemy, enemy_type)
                 #break
             else:
                 pass
-                #self._enemy_probability=self._enemy_probability-0.0000001*self._enemy_probability
             enemy_type+=1
 
     def spawn_enemy(self, enemy, enemy_type):
         stats=deepcopy(self._possible_enemies[enemy])
         box1=sprites.enemy(stats)
         if self.check_spawn_place(box1):
+            #print(box1.cords)
             self._enemies[enemy_type].append(box1)
         else:
             print("spawn avoided")
@@ -417,7 +438,7 @@ class game:
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [0,0,0], rec)
 
-        return None
+        #return None
 
         ac=[
             self.player.vertical_ac,
@@ -453,10 +474,14 @@ class game:
         value=(100-self._enemy_probability["Meteor"]+self.hardness)/len(list(self._enemy_probability.keys()))
         self.get_text(str("Probability: "+str(round(value, 4))), [400, screen_y-100])
 
+        self.get_text(str("Level code: "+str(self.code)), [400, screen_y-50])
+        self.get_text(str("Level seed: "+str(self.seed)), [400, screen_y-200])
+
         self.get_text(str("Score change: "+str(round(self.score_change, 2))), [1000, screen_y-50])
         self.get_text(str("Score: "+str(round(self.score, 2))), [1000, screen_y-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [1000, screen_y-150])
         self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
+        self.get_text(str("Distance: "+str(self.distanse)), [1000, screen_y-250])
 
     def get_text(self, text, pos, colour=[255,255,255]):
         text=self._font.render(text, False, colour)
@@ -555,8 +580,6 @@ class game:
         else:
             return True
 
-
-
     def end_game(self):
         #self.end_screen()
         self.status=False
@@ -568,7 +591,52 @@ class game:
         self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-100, screen_y/2-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-100, screen_y/2-50])
         self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-100, screen_y/2])
+        self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-100, screen_y/2+50])
 
+
+class Level(Game):
+
+    def __init__(self, screen, player, hardness, enemies, seed, aim):
+        super().__init__(screen, player, hardness, enemies, seed)
+
+        self.aim=aim
+
+    def check_aim(self):
+        ret=self.aim.check_aim(
+            score=self.score,
+            kills=self.player.kills,
+            damage=self.player.damage,
+            distanse=self.distanse
+        )
+        return ret
+
+    def frame(self, dir, fire, s_fire, fps):
+        check=self.check_aim()
+
+        return super().frame(dir, fire, s_fire, fps) and not(check)
+
+
+class Aim:
+
+    def __init__(self, score=None, kills=None, damage=None, distanse=None):
+        frame=inspect.currentframe()
+        args, _, _, values=inspect.getargvalues(frame)
+        self.aims={}
+        for name in args:
+            if values[name]!=None and name!="self":
+                self.aims[name]=[values[name], False]
+        print(self.aims)
+
+    def check_aim(self, score=None, kills=None, damage=None, distanse=None):
+        frame=inspect.currentframe()
+        args, _, _, values=inspect.getargvalues(frame)
+        for name, goal in self.aims.items():
+            if values[name]>=goal[0]:
+                self.aims[name][1]=True
+        ret=True
+        for suc in self.aims.values():
+            ret=ret and suc[1]
+        return ret
 
 def main():
     pygame.init()
@@ -576,7 +644,7 @@ def main():
     global screen_x, screen_y #globalises the hight and the width of the screen
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
 
-    current_game=menu(screen, [screen_x, screen_y])
+    current_game=Menu(screen, [screen_x, screen_y])
     #current_game.pick_ship()
 
 if __name__=="__main__":
