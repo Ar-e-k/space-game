@@ -5,6 +5,7 @@ from copy import deepcopy
 import random
 import sprites
 import inspect
+import pygame_textinput
 
 #random.seed(1)
 
@@ -29,12 +30,29 @@ class Menu:
         self.secondary_gun_selected=None
 
         self.actions={
-            "New game":lambda:self.check_game(self.infinite_runner_init),
-            "Levels":lambda:self.check_game(self.level_rnner_init),
+            "New game":lambda:self.get_text(self.infinite_runner_init),
+            #"New game":self.input_seed,
+            "Levels":lambda:self.get_text(self.level_rnner_init),
             "Select ship":lambda:self.pick_menu(self.ships, self.pick_ship),
             "Select gun":lambda:self.pick_menu(self.guns, self.pick_gun),
             "Select secondary gun":lambda:self.pick_menu(self.guns, self.pick_secondary_gun),
             "Exit":self.exit
+        }
+
+        self.unlocked_levels=[1, 2]
+        self.levels={
+            "Level 1":{
+                "hardness":1,
+                "enemies":self.enemies,
+                "seed":1,
+                "aim":Aim(kills=[10, "minimum"], distanse=[3000, "maximum"])
+            },
+            "Level 2":{
+                "hardness":5,
+                "enemies":self.enemies,
+                "seed":2,
+                "aim":Aim(distanse=[3000, "minimum"])
+            }
         }
 
         self.main_menu()
@@ -90,7 +108,7 @@ class Menu:
                             running=False
                             action(key)
 
-    def main_menu(self):
+    def main_menu(self, *args):
         pygame.mouse.set_visible(True)
 
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
@@ -173,9 +191,28 @@ class Menu:
         self.secondary_gun_selected=key
         self.main_menu()
 
-    #def input_seed(self)
+    def get_text(self, game):
+        running=True
 
-    def check_game(self, game):
+        while running:
+            self._screen.fill((225, 225, 225))
+
+            events = pygame.event.get()
+            for event in events:
+                if event.type==pygame.KEYDOWN:
+                    if event.key==27:
+                        running=False
+                        self.main_menu()
+
+            if textinput.update(events):
+                running=False
+                self.check_game(game, textinput.input_string)
+
+            self._screen.blit(textinput.get_surface(), (self.screen_size[0]/2, self.screen_size[1]/2))
+
+            pygame.display.update()
+
+    def check_game(self, game, number=None):
         random.seed()
 
         if self.ship_selected==None:
@@ -196,17 +233,25 @@ class Menu:
         else:
             player.load_S_gun(self.guns["No gun"])
 
-        game(player)
+        game(player, number)
 
-    def infinite_runner_init(self, player):
-        seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 1, self.enemies, seed=3)
+    def infinite_runner_init(self, player, seed=None):
+        if not(seed.isdigit()):
+            seed=random.randrange(sys.maxsize)
+        play=Game(self._screen, player, 1, self.enemies, seed)
 
         self.game(play)
 
-    def level_rnner_init(self, player):
-        aim=Aim(kills=[10, "minimum"], distanse=[10000, "maximum"])
-        play=Level(self._screen, player, 1, self.enemies, 1, aim=aim)
+    def level_rnner_init(self, player, level):
+        print(level, type(level))
+        print(self.unlocked_levels)
+        if int(level) in self.unlocked_levels:
+            pass
+        else:
+            self.invalid_level()
+        level="Level "+str(level)
+        level=deepcopy(self.levels[level])
+        play=Level(self._screen, player, level["hardness"], level["enemies"], level["seed"], aim=level["aim"])
 
         self.game(play)
 
@@ -281,6 +326,20 @@ class Menu:
                     if event.key==27:
                         end=False
                         self.main_menu()
+
+    def invalid_level(self):
+        pygame.mouse.set_visible(True)
+
+        rec=pygame.Rect([0, 0], [screen_x, screen_y])
+        pygame.draw.rect(self._screen, [0,0,0], rec)
+
+        action=lambda key:self.actions[key]()
+
+        pos=[self.screen_size[0]/5, self.screen_size[1]/2]
+        text=self._font.render("You have no access to this level yet or the level is invalid", False, [255,255,255])
+        self._screen.blit(text, pos)
+
+        self.basic_menu({"Exit":None}, self.main_menu)
 
     def save_result(self, score, ship, gun, s_gun):
         name=ship+".scores"
@@ -391,10 +450,10 @@ class Game:
         stats=deepcopy(self._possible_enemies[enemy])
         box1=sprites.enemy(stats)
         if self.check_spawn_place(box1):
-            #print(box1.cords)
             self._enemies[enemy_type].append(box1)
         else:
-            print("spawn avoided")
+            pass
+            #print("spawn avoided")
 
     def check_spawn_place(self, enemy_check):
         box_check=enemy_check.return_box()
@@ -637,6 +696,7 @@ class Level(Game):
 
         return ret, mes
 
+
 class Aim:
 
     def __init__(self, score=None, kills=None, damage=None, distanse=None):
@@ -655,8 +715,6 @@ class Aim:
         for name in args:
             if values[name]!=None and name!="self":
                 self.types[values[name][1]][name]=[values[name][0], False]
-                #self.aims[name]=[values[name], False]
-        print(self.aims)
 
     def check_aims(self, **kwargs):
         rets=[]
@@ -691,6 +749,8 @@ class Aim:
 
 def main():
     pygame.init()
+    global textinput
+    textinput=pygame_textinput.TextInput()
     pygame.display.set_caption("Space game")
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     global screen_x, screen_y #globalises the hight and the width of the screen
