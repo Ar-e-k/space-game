@@ -106,7 +106,7 @@ class Menu:
         texts=["Ship: "+str(self.ship_selected), "Gun: "+str(self.gun_selected), "Second gun: "+str(self.secondary_gun_selected)]
         for i in range(3):
             text=texts[i]
-            pos=[self.screen_size[0]/20, self.screen_size[1]/2+((i-4)*self.screen_size[1]/16)]
+            pos=[self.screen_size[0]/9, self.screen_size[1]/6*5+((i-4)*self.screen_size[1]/16)]
             text=self._font.render(text, False, [255,255,255])
             self._screen.blit(text, pos)
 
@@ -173,6 +173,8 @@ class Menu:
         self.secondary_gun_selected=key
         self.main_menu()
 
+    #def input_seed(self)
+
     def check_game(self, game):
         random.seed()
 
@@ -190,7 +192,7 @@ class Menu:
 
         player.load_gun(self.guns[gun_selected])
         if self.secondary_gun_selected!=None:
-            player.load_S_gun(self.guns[self.secondary_gun])
+            player.load_S_gun(self.guns[self.secondary_gun_selected])
         else:
             player.load_S_gun(self.guns["No gun"])
 
@@ -198,12 +200,12 @@ class Menu:
 
     def infinite_runner_init(self, player):
         seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 1, self.enemies, seed)
+        play=Game(self._screen, player, 1, self.enemies, seed=3)
 
         self.game(play)
 
     def level_rnner_init(self, player):
-        aim=Aim(kills=10)
+        aim=Aim(kills=[10, "minimum"], distanse=[10000, "maximum"])
         play=Level(self._screen, player, 1, self.enemies, 1, aim=aim)
 
         self.game(play)
@@ -222,7 +224,7 @@ class Menu:
         fpsclock = pygame.time.Clock()
 
         while playing: #Main gameloop
-            playing=play.frame(direction, fire, s_fire, fpsclock)
+            playing, mes=play.frame(direction, fire, s_fire, fpsclock)
             for event in pygame.event.get():
                 if event.type==pygame.KEYDOWN:
                     if event.key==27: #key 27 is escape, clicking it quits the game
@@ -267,7 +269,7 @@ class Menu:
             pygame.display.flip()
             fpsclock.tick(FPS)
 
-        play.end_screen()
+        play.end_screen(mes)
         pygame.display.flip()
         end=True
 
@@ -358,7 +360,7 @@ class Game:
 
         self.update_score()
 
-        return self.status
+        return self.status, "You lost"
 
     def update_score(self):
         self.hardness+=0.0001
@@ -584,9 +586,11 @@ class Game:
         #self.end_screen()
         self.status=False
 
-    def end_screen(self):
+    def end_screen(self, mes):
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [0,0,0], rec)
+
+        self.get_text(mes, [screen_x/2-100, screen_y/2-150])
 
         self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-100, screen_y/2-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-100, screen_y/2-50])
@@ -602,7 +606,7 @@ class Level(Game):
         self.aim=aim
 
     def check_aim(self):
-        ret=self.aim.check_aim(
+        ret=self.aim.check_aims(
             score=self.score,
             kills=self.player.kills,
             damage=self.player.damage,
@@ -611,35 +615,83 @@ class Level(Game):
         return ret
 
     def frame(self, dir, fire, s_fire, fps):
-        check=self.check_aim()
+        check2=self.check_aim()
 
-        return super().frame(dir, fire, s_fire, fps) and not(check)
+        check=super().frame(dir, fire, s_fire, fps)
 
+        if check[0]:
+            pass
+        else:
+            return check
+
+        ret=False or check[0]
+        mes=""
+
+        for ch in check2:
+            ret=not(ch[0]) and ret
+            if ret:
+                pass
+            else:
+                mes=ch[1]
+                break
+
+        return ret, mes
 
 class Aim:
 
     def __init__(self, score=None, kills=None, damage=None, distanse=None):
         frame=inspect.currentframe()
         args, _, _, values=inspect.getargvalues(frame)
-        self.aims={}
+
+        self.aims={
+            "min_aims":[{}, self.check_min],
+            "max_aims":[{}, self.check_max]
+        }
+        self.types={
+            "minimum":self.aims["min_aims"][0],
+            "maximum":self.aims["max_aims"][0]
+        }
+
         for name in args:
             if values[name]!=None and name!="self":
-                self.aims[name]=[values[name], False]
+                self.types[values[name][1]][name]=[values[name][0], False]
+                #self.aims[name]=[values[name], False]
         print(self.aims)
 
-    def check_aim(self, score=None, kills=None, damage=None, distanse=None):
-        frame=inspect.currentframe()
-        args, _, _, values=inspect.getargvalues(frame)
-        for name, goal in self.aims.items():
-            if values[name]>=goal[0]:
-                self.aims[name][1]=True
+    def check_aims(self, **kwargs):
+        rets=[]
+        for aims in self.aims.values():
+            if len(list(aims[0].values()))!=0:
+                #for aim in aims[0].items():
+                ret=aims[1](kwargs, aims[0])
+                rets.append(ret)
+        return rets
+
+    def check_min(self, kwargs, aims):
+        for name, goal in aims.items():
+            if kwargs[name]>=goal[0]:
+                self.aims["min_aims"][0][name][1]=True
+
         ret=True
-        for suc in self.aims.values():
+        for suc in aims.values():
             ret=ret and suc[1]
-        return ret
+
+        return ret, "You win"
+
+    def check_max(self, kwargs, aims):
+        for name, goal in aims.items():
+            if kwargs[name]>=goal[0]:
+                self.aims["max_aims"][0][name][1]=True
+
+        ret=True
+        for suc in aims.values():
+            ret=ret and suc[1]
+
+        return ret, "You lost"
 
 def main():
     pygame.init()
+    pygame.display.set_caption("Space game")
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     global screen_x, screen_y #globalises the hight and the width of the screen
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
