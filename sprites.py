@@ -137,7 +137,6 @@ class player:
         if True in check:
             self.vertical=0
             self.horizontal=0
-            print("here")
             return self.loose_life()
         return True
 
@@ -208,8 +207,6 @@ class enemy:
 
     def __init__(self, inputs):
         health, speed, size, img, screen_x, screen_y=inputs
-        #print(health)
-        #print(speed)
 
         self.health=health
         self.speed=speed

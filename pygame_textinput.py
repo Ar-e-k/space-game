@@ -185,6 +185,11 @@ class TextInput:
         self.input_string = ""
         self.cursor_position = 0
 
+    def return_info_needed(self):
+        return self.input_string, self.cursor_visible, self.cursor_surface
+
+    def return_cursor_stuff(self):
+        return self.input_string, self.cursor_visible, self.cursor_position
 
 
 if __name__ == "__main__":

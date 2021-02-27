@@ -7,15 +7,10 @@ import sprites
 import inspect
 import pygame_textinput
 
-#random.seed(1)
-
 
 class Menu:
 
     def __init__(self, screen, screen_size):
-        pickle.dump({}, open('Scores/ship2.scores', "wb"))
-        pickle.dump({}, open('Scores/ship1.scores', "wb"))
-
         self._screen=screen
         self.screen_size=screen_size
 
@@ -30,9 +25,8 @@ class Menu:
         self.secondary_gun_selected=None
 
         self.actions={
-            "New game":lambda:self.get_text(self.infinite_runner_init),
-            #"New game":self.input_seed,
-            "Levels":lambda:self.get_text(self.level_rnner_init),
+            "New game":lambda:self.get_input(self.infinite_runner_init, self.infinite_runner_display),
+            "Levels":lambda:self.get_input(self.level_runner_init, self.level_runner_display),
             "Select ship":lambda:self.pick_menu(self.ships, self.pick_ship),
             "Select gun":lambda:self.pick_menu(self.guns, self.pick_gun),
             "Select secondary gun":lambda:self.pick_menu(self.guns, self.pick_secondary_gun),
@@ -45,15 +39,26 @@ class Menu:
                 "hardness":1,
                 "enemies":self.enemies,
                 "seed":1,
-                "aim":Aim(kills=[10, "minimum"], distanse=[3000, "maximum"])
+                "aim":Aim(kills=[10, "Minimum"], score=[1, "Minimum"], distanse=[3000, "Maximum"]),
+                "unlocked":True
             },
             "Level 2":{
                 "hardness":5,
                 "enemies":self.enemies,
                 "seed":2,
-                "aim":Aim(distanse=[3000, "minimum"])
+                "aim":Aim(distanse=[3000, "Minimum"]),
+                "unlocked":True
+            },
+            "Level 3":{
+                "hardness":20,
+                "enemies":self.enemies,
+                "seed":3,
+                "aim":Aim(distanse=[10000, "Minimum"]),
+                "unlocked":True
             }
         }
+
+        self.load_result()
 
         self.main_menu()
 
@@ -70,27 +75,43 @@ class Menu:
                 rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
-                self._screen.blit(self._font.render(options_texts[i], False, [0,255,0]), (screen_x/32+x_pos, (screen_y/8*1.75)+((i-0.75)*3*screen_y/16)))
+                pos=(
+                    screen_x/32+x_pos,
+                    (screen_y/8*1.75)+((i-0.75)*3*screen_y/16)
+                )
+                self.get_text(options_texts[i], pos, [0,255,0])
         elif 5<size<11:
             x_pos=screen_x/9
             for i in range(0, int(size/2)):
                 rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
-                self._screen.blit(self._font.render(options_texts[i], False, [0,255,0]), (screen_x/32+x_pos, (screen_y/8*1.75)+((i-0.75)*3*screen_y/16)))
+                pos=(
+                    screen_x/32+x_pos,
+                    (screen_y/8*1.75)+((i-0.75)*3*screen_y/16)
+                )
+                self.get_text(options_texts[i], pos, [0,255,0])
             x_pos=5*screen_x/9
             for i in range(int(size/2), int(size/2)*2):
                 rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
-                self._screen.blit(self._font.render(options_texts[i], False, [0,255,0]), (screen_x/32+x_pos, (screen_y/8*1.75)+((i-int(size/2)-0.75)*3*screen_y/16)))
+                pos=(
+                    screen_x/32+x_pos,
+                    (screen_y/8*1.75)+((i-int(size/2)-0.75)*3*screen_y/16)
+                )
+                self.get_text(options_texts[i], pos, [0,255,0])
             if int(size/2)!=size/2:
                 i+=1
                 x_pos=screen_x/3
                 rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
-                self._screen.blit(self._font.render(options_texts[i], False, [0,255,0]), (screen_x/32+x_pos, (screen_y/8*1.75)+((i-int(size/2)-0.75)*3*screen_y/16)))
+                pos=(
+                    screen_x/32+x_pos,
+                    (screen_y/8*1.75)+((i-int(size/2)-0.75)*3*screen_y/16)
+                )
+                self.get_text(options_texts[i], pos, [0,255,0])
         pygame.display.flip()
         return buttons_on_screen
 
@@ -108,6 +129,23 @@ class Menu:
                             running=False
                             action(key)
 
+    def get_text(self, text, pos, colour=[255,255,255], center=False, back=False):
+        text_width, text_height=self._font.size(text)
+
+        if center:
+            pos=[
+                pos[0]-(text_width/2),
+                pos[1]-(text_height/2)
+            ]
+        elif back:
+            pos=[
+                pos[0]-(text_width),
+                pos[1]-(text_height/2)
+            ]
+
+        text=self._font.render(text, False, colour)
+        self._screen.blit(text, pos)
+
     def main_menu(self, *args):
         pygame.mouse.set_visible(True)
 
@@ -124,9 +162,12 @@ class Menu:
         texts=["Ship: "+str(self.ship_selected), "Gun: "+str(self.gun_selected), "Second gun: "+str(self.secondary_gun_selected)]
         for i in range(3):
             text=texts[i]
-            pos=[self.screen_size[0]/9, self.screen_size[1]/6*5+((i-4)*self.screen_size[1]/16)]
-            text=self._font.render(text, False, [255,255,255])
-            self._screen.blit(text, pos)
+
+            pos=[
+                self.screen_size[0]/9,
+                self.screen_size[1]/6*5+((i-4)*self.screen_size[1]/16)
+            ]
+            self.get_text(text, pos, [255,255,255])
 
     def define_ships(self):
         ship2_gun_model=[
@@ -191,11 +232,18 @@ class Menu:
         self.secondary_gun_selected=key
         self.main_menu()
 
-    def get_text(self, game):
+    def get_input(self, game, display):
         running=True
 
+        textinput=pygame_textinput.TextInput(
+            text_color=(0,255,0),
+            cursor_color=(0,255,0),
+            font_family='freesansbold.ttf',
+            font_size=32
+            )
+
         while running:
-            self._screen.fill((225, 225, 225))
+            self._screen.fill((0,0,0))
 
             events = pygame.event.get()
             for event in events:
@@ -203,14 +251,173 @@ class Menu:
                     if event.key==27:
                         running=False
                         self.main_menu()
+            pos=pygame.mouse.get_pos()
 
             if textinput.update(events):
                 running=False
                 self.check_game(game, textinput.input_string)
 
-            self._screen.blit(textinput.get_surface(), (self.screen_size[0]/2, self.screen_size[1]/2))
+            text, cursor_vis, cursor_pos=textinput.return_cursor_stuff()
+            if cursor_vis:
+                cursor_pos=self._font.size(text[:cursor_pos])[0]
+
+            display(textinput, cursor_pos, pos)
 
             pygame.display.update()
+
+    def infinite_runner_display(self, textinput, cursor_pos, mouse_pos):
+        text, cursor_vis, cursor=textinput.return_info_needed()
+        text_width, text_height=self._font.size(text)
+
+        rect_size=[self.screen_size[0]/4+text_width, self.screen_size[1]/6]
+        rec=pygame.Rect(self.screen_size[0]/2-rect_size[0]/2, self.screen_size[1]/2, rect_size[0], rect_size[1])
+        pygame.draw.rect(self._screen, [255,0,0], rec)
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4
+        )
+        self.get_text("Define your seed, leave empty to randomise", pos, [0,255,0], True)
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/2+rect_size[1]/2
+            )
+        self.get_text(text, pos, [0,255,0], True)
+
+        #results_2d=list(self.results.values())
+        results_seed={}
+        for seed, lis in self.results.items():
+            for i in lis:
+                results_seed[i]=seed
+        results=list(results_seed.keys())
+        results.sort()
+
+        for i in range(1, 10):
+            pos=(
+                10,
+                self.screen_size[1]/4+i*text_height
+            )
+            try:
+                mes=str(i)+") "+str(results[-i])
+            except IndexError:
+                break
+            size=self._font.size(mes)
+            rec=pygame.Rect(pos, size)
+            if rec.collidepoint(mouse_pos):
+                if text=="":
+                    textinput.input_string=str(results_seed[float(mes[3:])])
+            self.get_text(mes, pos, [0,255,0])
+
+        if text in self.results.keys():
+            results=self.results[text]
+            results.sort()
+            for i in range(1, 11):
+                pos=(
+                    self.screen_size[0]-10,
+                    self.screen_size[1]/4+i*text_height
+                )
+                try:
+                    mes=str(i)+") "+str(results[-i])
+                except IndexError:
+                    break
+                self.get_text(mes, pos, [0,255,0], back=True)
+
+        if cursor_vis:
+            pos=(
+            self.screen_size[0]/2-text_width/2+cursor_pos,
+            self.screen_size[1]/2+rect_size[1]/2-text_height/2
+            )
+            self._screen.blit(cursor, pos)
+
+    def level_runner_display(self, textinput, cursor_pos, pos):
+        text, cursor_vis, cursor=textinput.return_info_needed()
+        text_width, text_height=self._font.size(text)
+
+        rect_size=[self.screen_size[0]/4+text_width, self.screen_size[1]/6]
+        rec=pygame.Rect(self.screen_size[0]/2-rect_size[0]/2, self.screen_size[1]/2, rect_size[0], rect_size[1])
+        pygame.draw.rect(self._screen, [255,0,0], rec)
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4
+        )
+        self.get_text("Which level you you want to play", pos, [0,255,0], True)
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4+text_height
+        )
+        self.get_text("You have the following levels avaliable:", pos, [0,255,0], True)
+
+        levels=""
+        for name, level in self.levels.items():
+            if level["unlocked"]:
+                levels+=(name+", ")
+        levels=levels[:-2]
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4+text_height*2
+        )
+        self.get_text(levels, pos, [0,255,0], True)
+
+        level="Level "+str(text)
+        if level in self.levels.keys():
+            i=0
+            for name, value in self.levels[level].items():
+                if name in ["hardness", "aim", "unlocked"]:
+                    if name=="hardness":
+                        mes="Hardness: "+str(value)
+                    elif name=="aim":
+                        texts=value.return_aim()
+                        for mes in texts:
+                            pos=(
+                                self.screen_size[0]/2,
+                                self.screen_size[1]/2+rect_size[1]/2+text_height*(3+i)*1.5
+                            )
+                            self.get_text(mes, pos, [0,255,0], True)
+                            i+=1
+                        continue
+                    elif name=="unlocked":
+                        mes="Unlocked: "+str(value)
+                    pos=(
+                        self.screen_size[0]/2,
+                        self.screen_size[1]/2+rect_size[1]/2+text_height*(3+i)*1.5
+                    )
+                    self.get_text(mes, pos, [0,255,0], True)
+                    i+=1
+        else:
+            pos=(
+                self.screen_size[0]/2,
+                self.screen_size[1]/2+rect_size[1]/2+text_height*(3)
+            )
+            self.get_text("Invalid level", pos, [0,255,0], True)
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/2+rect_size[1]/2
+            )
+        self.get_text(text, pos, [0,255,0], True)
+
+        if text in self.level_results.keys():
+            results=self.level_results[text]
+            results.sort()
+            for i in range(1, 11):
+                pos=(
+                    10,
+                    self.screen_size[1]/4+i*text_height
+                )
+                try:
+                    mes=str(i)+") "+str(results[-i])
+                except IndexError:
+                    break
+                self.get_text(mes, pos, [0,255,0])
+
+        if cursor_vis:
+            pos=(
+            self.screen_size[0]/2-text_width/2+cursor_pos,
+            self.screen_size[1]/2+rect_size[1]/2-text_height/2
+            )
+            self._screen.blit(cursor, pos)
 
     def check_game(self, game, number=None):
         random.seed()
@@ -242,14 +449,19 @@ class Menu:
 
         self.game(play)
 
-    def level_rnner_init(self, player, level):
-        print(level, type(level))
-        print(self.unlocked_levels)
-        if int(level) in self.unlocked_levels:
+    def level_runner_init(self, player, level):
+        if level.isdigit():
             pass
         else:
-            self.invalid_level()
+            level=1
         level="Level "+str(level)
+        if level in self.levels.keys():
+            if self.levels[level]["unlocked"]:
+                pass
+            else:
+                self.invalid_level()
+        else:
+            self.invalid_level()
         level=deepcopy(self.levels[level])
         play=Level(self._screen, player, level["hardness"], level["enemies"], level["seed"], aim=level["aim"])
 
@@ -318,7 +530,10 @@ class Menu:
         pygame.display.flip()
         end=True
 
-        #self.save_result(play.score, ship, gun, secondary_gun)
+        if type(Game("screen", "player", "hardness", {}, 1))==type(play):
+            self.save_result(play.score, play.seed)
+        elif type(Level("screen", "player", "hardness", {}, 1, "aim"))==type(play):
+            self.save_level_result(play.score, play.seed)
 
         while end:
             for event in pygame.event.get():
@@ -335,22 +550,56 @@ class Menu:
 
         action=lambda key:self.actions[key]()
 
-        pos=[self.screen_size[0]/5, self.screen_size[1]/2]
-        text=self._font.render("You have no access to this level yet or the level is invalid", False, [255,255,255])
-        self._screen.blit(text, pos)
+        pos=[
+            self.screen_size[0]/2,
+            self.screen_size[1]/2
+        ]
+        text="You have no access to this level yet or the level is invalid"
+        self.get_text(text, pos, [255,255,255], True)
 
         self.basic_menu({"Exit":None}, self.main_menu)
 
-    def save_result(self, score, ship, gun, s_gun):
-        name=ship+".scores"
-        name=name.lower()
-        results=pickle.load(open("Scores/"+name, "rb"))
-        results[score]=[gun, s_gun]
+    def save_result(self, score, seed):
+        name="saves.scores"
+        score=round(score, 2)
+        try:
+            results=pickle.load(open("Scores/"+name, "rb"))
+        except FileNotFoundError:
+            results={}
+        if str(seed) in results.keys():
+            results[str(seed)].append(score)
+        else:
+            results[str(seed)]=[score]
         pickle.dump(results, open('Scores/'+name, "wb"))
+        self.load_result()
+
+    def save_level_result(self, score, level):
+        name="level_saves.scores"
+        score=round(score, 2)
+        try:
+            results=pickle.load(open("Scores/"+name, "rb"))
+        except FileNotFoundError:
+            results={}
+        if str(level) in results.keys():
+            results[str(level)].append(score)
+        else:
+            results[str(level)]=[score]
+        pickle.dump(results, open('Scores/'+name, "wb"))
+        self.load_result()
 
     def load_result(self):
-        name+=".gameres"
-        #results=pickle.load(open(, 'rb'))
+        name="saves.scores"
+        try:
+            results=pickle.load(open("Scores/"+name, "rb"))
+        except FileNotFoundError:
+            results={}
+        self.results=results
+        name="level_saves.scores"
+        try:
+            results_l=pickle.load(open("Scores/"+name, "rb"))
+        except FileNotFoundError:
+            results_l={}
+        self.level_results=results_l
 
     def exit(self):
         pygame.quit()
@@ -361,11 +610,12 @@ class Game:
 
     def __init__(self, screen, player, hardness, enemies, seed):
         self.seed=seed
-        random.seed(self.seed)
+        random.seed(int(self.seed))
 
         self.code=""
         for i in range(5):
-            self.code+=str(random.randint(0, 9))
+            num=str(random.randint(0, 9))
+            self.code+=num
 
         self._screen=screen
         self.player=player
@@ -453,7 +703,6 @@ class Game:
             self._enemies[enemy_type].append(box1)
         else:
             pass
-            #print("spawn avoided")
 
     def check_spawn_place(self, enemy_check):
         box_check=enemy_check.return_box()
@@ -623,8 +872,6 @@ class Game:
             else:
                 self.end_game()
 
-        #if player_box.colliderect(box) or player_box1.colliderect(box):
-
     def check_colisions_laser(self, laser_box, index, index2, enemy, box, damage):
         if box.colliderect(laser_box):
             alive=enemy.get_damage(damage)
@@ -708,8 +955,12 @@ class Aim:
             "max_aims":[{}, self.check_max]
         }
         self.types={
-            "minimum":self.aims["min_aims"][0],
-            "maximum":self.aims["max_aims"][0]
+            "Minimum":self.aims["min_aims"][0],
+            "Maximum":self.aims["max_aims"][0]
+        }
+        self.type_expand={
+            "Minimum":"Get above",
+            "Maximum":"Without exciding"
         }
 
         for name in args:
@@ -747,10 +998,24 @@ class Aim:
 
         return ret, "You lost"
 
+    def return_aim(self):
+        texts=[]
+        for category, dic in self.types.items():
+            if len(list(dic.keys()))==0:
+                continue
+            else:
+                pass
+            category=self.type_expand[category]
+            text=category+": "
+            for typ, val in dic.items():
+                text+=typ+"="+str(val[0])+", "
+            text=text[:-2]
+            texts.append(text)
+        return texts
+
+
 def main():
     pygame.init()
-    global textinput
-    textinput=pygame_textinput.TextInput()
     pygame.display.set_caption("Space game")
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     global screen_x, screen_y #globalises the hight and the width of the screen
