@@ -1,8 +1,9 @@
 import pygame
 import sys
 import pickle
-from copy import deepcopy
+from copy import deepcopy, copy
 import random
+from random import randint, uniform
 import sprites
 import inspect
 import pygame_textinput
@@ -62,6 +63,7 @@ class Menu:
 
         self.main_menu()
 
+
     def buttons(self, options_texts):
         buttons_on_screen={}
 
@@ -115,6 +117,7 @@ class Menu:
         pygame.display.flip()
         return buttons_on_screen
 
+
     def basic_menu(self, options, action):
         running=True
 
@@ -128,6 +131,7 @@ class Menu:
                         if rec.collidepoint(pos):
                             running=False
                             action(key)
+
 
     def get_text(self, text, pos, colour=[255,255,255], center=False, back=False):
         text_width, text_height=self._font.size(text)
@@ -146,6 +150,7 @@ class Menu:
         text=self._font.render(text, False, colour)
         self._screen.blit(text, pos)
 
+
     def main_menu(self, *args):
         pygame.mouse.set_visible(True)
 
@@ -158,6 +163,7 @@ class Menu:
 
         self.basic_menu(self.actions, action)
 
+
     def display_parts_picked(self):
         texts=["Ship: "+str(self.ship_selected), "Gun: "+str(self.gun_selected), "Second gun: "+str(self.secondary_gun_selected)]
         for i in range(3):
@@ -169,6 +175,8 @@ class Menu:
             ]
             self.get_text(text, pos, [255,255,255])
 
+
+    #Define ships, guns and enemy stats
     def define_ships(self):
         ship2_gun_model=[
             [1, 0.5],
@@ -185,12 +193,15 @@ class Menu:
             ]
         ]
 
-        ship1=([100, 10], 3, 80000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 4, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship1=([100, 10], 5, 160000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 3, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], 2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], -1, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
-        return {"ship1":ship1, "ship2":ship2}
+        return {"ship1":ship1, "ship2":ship2, "test":ship3}
+
 
     def define_guns(self):
         guns={
@@ -198,20 +209,24 @@ class Menu:
             "Cleaner":(50, 10000, [screen_x, 2*screen_y], 0, 0),
             "Front recoil":(200, 5, [screen_x, 4], 100, -50),
             "Op gun":(200, 20, [screen_x, 20], 100, -50),
-            "Mati gun":(69, 20, [screen_x, 45], 100, -70),
-            "69 gun":(69, 69, [screen_x, 69], 69, 69),
+            "Rand gun":(5, 40, [screen_x, 150], 300, 4000, "rand"),
             "No gun":(0, 0, [screen_x, 0], 1, 0)
         }
 
         return guns
 
+
     def define_enemies(self):
         enemies={
-            "Meteor":(100, 3, [100, 100], "Meteor.png", self.screen_size[0], self.screen_size[1]),
-            "Meteor2":(200, 1, [200, 200], "Meteor.png", self.screen_size[0], self.screen_size[1])
+            "Meteor":(80, 3, [100, 100], "Meteor.png", self.screen_size[0], self.screen_size[1]),
+            "Meteor2":(150, 1, [150, 150], "Meteor.png", self.screen_size[0], self.screen_size[1]),
+            "Meteor3":(300, 0.5, [200, 200], "Meteor.png", self.screen_size[0], self.screen_size[1])
         }
         return enemies
 
+    ###
+
+    #Picking menues
     def pick_menu(self, feed, value):
         action=lambda key:value(key)
 
@@ -220,17 +235,22 @@ class Menu:
 
         self.basic_menu(feed, action)
 
+
     def pick_ship(self, key):
         self.ship_selected=key
         self.main_menu()
+
 
     def pick_gun(self, key):
         self.gun_selected=key
         self.main_menu()
 
+
     def pick_secondary_gun(self, key):
         self.secondary_gun_selected=key
         self.main_menu()
+
+    ###
 
     def get_input(self, game, display):
         running=True
@@ -264,6 +284,7 @@ class Menu:
             display(textinput, cursor_pos, pos)
 
             pygame.display.update()
+
 
     def infinite_runner_display(self, textinput, cursor_pos, mouse_pos):
         text, cursor_vis, cursor=textinput.return_info_needed()
@@ -329,6 +350,7 @@ class Menu:
             self.screen_size[1]/2+rect_size[1]/2-text_height/2
             )
             self._screen.blit(cursor, pos)
+
 
     def level_runner_display(self, textinput, cursor_pos, pos):
         text, cursor_vis, cursor=textinput.return_info_needed()
@@ -419,6 +441,7 @@ class Menu:
             )
             self._screen.blit(cursor, pos)
 
+
     def check_game(self, game, number=None):
         random.seed()
 
@@ -442,12 +465,14 @@ class Menu:
 
         game(player, number)
 
+
     def infinite_runner_init(self, player, seed=None):
         if not(seed.isdigit()):
             seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 1, self.enemies, seed)
+        play=Game(self._screen, player, 10, self.enemies, seed)
 
         self.game(play)
+
 
     def level_runner_init(self, player, level):
         if level.isdigit():
@@ -467,6 +492,8 @@ class Menu:
 
         self.game(play)
 
+
+    #Main game loop
     def game(self, play):
         pygame.mouse.set_visible(False)
 
@@ -476,12 +503,14 @@ class Menu:
         direction=[0, 0]
         fire=False
         s_fire=False
+        special=False
 
         FPS = 120
         fpsclock = pygame.time.Clock()
 
         while playing: #Main gameloop
-            playing, mes=play.frame(direction, fire, s_fire, fpsclock)
+            playing, mes=play.frame(direction, fire, s_fire, special, fpsclock)
+            special=False
             for event in pygame.event.get():
                 if event.type==pygame.KEYDOWN:
                     if event.key==27: #key 27 is escape, clicking it quits the game
@@ -505,6 +534,8 @@ class Menu:
                         fire=True
                     elif event.key==107:
                         s_fire=True
+                    elif event.key==108:
+                        special=True
                 if event.type==pygame.KEYUP:
                     if event.key in [97, 100]:
                         direction[0]=0
@@ -542,6 +573,8 @@ class Menu:
                         end=False
                         self.main_menu()
 
+    ###
+
     def invalid_level(self):
         pygame.mouse.set_visible(True)
 
@@ -559,6 +592,7 @@ class Menu:
 
         self.basic_menu({"Exit":None}, self.main_menu)
 
+
     def save_result(self, score, seed):
         name="saves.scores"
         score=round(score, 2)
@@ -572,6 +606,7 @@ class Menu:
             results[str(seed)]=[score]
         pickle.dump(results, open('Scores/'+name, "wb"))
         self.load_result()
+
 
     def save_level_result(self, score, level):
         name="level_saves.scores"
@@ -587,6 +622,7 @@ class Menu:
         pickle.dump(results, open('Scores/'+name, "wb"))
         self.load_result()
 
+
     def load_result(self):
         name="saves.scores"
         try:
@@ -601,16 +637,36 @@ class Menu:
             results_l={}
         self.level_results=results_l
 
+
     def exit(self):
         pygame.quit()
         sys.exit()
 
 
+
 class Game:
+
+    def kill_switch(self):
+        self._enemies=[[] for i in range(len(self._possible_enemies))]
+        alive=self.player.loose_life()
+        if alive:
+            pass
+        else:
+            self.end_game()
+
 
     def __init__(self, screen, player, hardness, enemies, seed):
         self.seed=seed
         random.seed(int(self.seed))
+
+        img="star1.png"
+        img="test1.png"
+        #img="star2.png"
+        self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
+        self.img.set_alpha(128)
+        self.bc=[1, 8, [], img, screen_x, screen_y]
+
+        self.all_bc=[]
 
         self.code=""
         for i in range(5):
@@ -619,6 +675,7 @@ class Game:
 
         self._screen=screen
         self.player=player
+        print(player)
 
         self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
 
@@ -632,24 +689,50 @@ class Game:
             i+=0.5
             self._enemies.append([])
 
+
+        self.specials={
+            "kill switch": [lambda: self.kill_switch(), 1500],
+            "shild": [lambda: self.player.add_shild(), 3000],
+            "multi": [lambda: self.player.add_multi(), 2500]
+        }
+
+        self.special_counter=1
+
         self.status=True
 
         self.hardness=hardness
 
         self.score=0
         self.score_change=0
+        self.pos_score_change=0
         self.distanse=0
+
 
     def update_acceleration(self, dir):
         self.player.horixontal_thrust(dir[0])
         self.player.vertical_thrust(dir[1])
 
-    def frame(self, dir, fire, s_fire, fps):
+
+    def frame(self, dir, fire, s_fire, special, fps):
         self.update_acceleration(dir)
         self.player.update_velocity()
         self.player.move()
 
         self.spawn_enemis()
+
+        name=self.player.special
+        if special and self.specials[name][1]==self.special_counter:
+            self.specials[name][0]()
+            self.special_counter-=1
+        if self.special_counter!=self.specials[name][1]:
+            self.special_counter-=1
+
+            self.player.check_shild()
+            self.player.check_multi()
+
+        if self.special_counter==0:
+            self.special_counter=copy(self.specials[name][1])
+            self.special=False
 
         self.player.resert_recoil()
         fire_check=self.check_fire(fire, "F")
@@ -671,6 +754,7 @@ class Game:
 
         return self.status, "You lost"
 
+
     def update_score(self):
         self.hardness+=0.0001
 
@@ -680,9 +764,11 @@ class Game:
         pos=self.player.return_cords()
         score+=(0.5*screen_x-abs(pos[0]-0.5*screen_x))
         score+=(0.5*screen_y-abs(pos[1]-0.5*screen_y))
-        self.score_change=(round(score/1000, 1)**1.5)*0.5
+        self.pos_score_change=[int(score), round(((score/1000)**1.5)*0.5, 5)]
+        self.score_change=(round(score/1000, 2)**1.5)*0.5
         self.score+=self.score_change
         self.player.gain_score()
+
 
     def spawn_enemis(self):
         enemy_type=0
@@ -696,6 +782,7 @@ class Game:
                 pass
             enemy_type+=1
 
+
     def spawn_enemy(self, enemy, enemy_type):
         stats=deepcopy(self._possible_enemies[enemy])
         box1=sprites.enemy(stats)
@@ -703,6 +790,7 @@ class Game:
             self._enemies[enemy_type].append(box1)
         else:
             pass
+
 
     def check_spawn_place(self, enemy_check):
         box_check=enemy_check.return_box()
@@ -716,11 +804,14 @@ class Game:
                         return False
         return True
 
+
     def check_fire(self, fire, gun):
         if gun=="F":
             gun=self.player.gun
         elif gun=="S":
             gun=self.player.secondary_gun
+        else:
+            return False
         if fire==True:
             pass
         else:
@@ -734,8 +825,10 @@ class Game:
             return True
         else:
             #self.player.stop_fire(gun)
-            gun.reload_timer()
+            if not(self.player.pac):
+                gun.reload_timer()
             return False
+
 
     def check_overspeed(self):
         alive=self.player.overspeed()
@@ -744,9 +837,46 @@ class Game:
         else:
             self.end_game()
 
+
+    def add_stars(self):
+        rem=[]
+        if randint(0, 100)>70:
+            po=(1/2)
+            size=uniform(10**po, 70**po)
+            size=int(size**(1/po))
+            stats=copy(self.bc)
+            stats[2]=[size, size]
+            new_bc=sprites.star(stats, self.img)
+            for bc in self.all_bc:
+                if bc.return_box().colliderect(new_bc.return_box()):
+                    break
+                else:
+                    pass
+            else:
+                self.all_bc.append(new_bc)
+
+        for pos, bc in enumerate(self.all_bc):
+            bc.move()
+            if bc.check_map():
+                rem.append(pos)
+            self.draw_enemy(None, bc)
+        for i in rem[-1:0:-1]:
+            self.all_bc.pop(i)
+
+
     def draw_background(self, fps):
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
-        pygame.draw.rect(self._screen, [0,0,0], rec)
+        if self.player.shild:
+            col=[0,0,64]
+        elif self.player.damage_multi!=1:
+            col=[64,0,0]
+        else:
+            col=[46, 64, 83]
+            col=[0,0,0]
+            #col=[0, 98, 166]
+        pygame.draw.rect(self._screen, col, rec)
+
+        self.add_stars()
 
         #return None
 
@@ -792,16 +922,21 @@ class Game:
         self.get_text(str("Kills: "+str(self.player.kills)), [1000, screen_y-150])
         self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
         self.get_text(str("Distance: "+str(self.distanse)), [1000, screen_y-250])
+        self.get_text(str("Pos Score change: "+str(self.pos_score_change)), [0, screen_y-300])
+        self.get_text(str("Special recharge: "+str(self.special_counter)), [1000, screen_y-300])
+
 
     def get_text(self, text, pos, colour=[255,255,255]):
         text=self._font.render(text, False, colour)
         self._screen.blit(text, pos)
+
 
     def draw_player(self):
         ship=self.player.return_img()
         #pygame.draw.rect(self._screen, [255,255,255], box)
         #pygame.draw.rect(self._screen, [255,255,255], box2)
         self._screen.blit(ship, self.player.return_cords())
+
 
     def draw_fire(self, box):
         if box=="F":
@@ -811,12 +946,14 @@ class Game:
         for box in boxes:
             pygame.draw.rect(self._screen, [125,0,0], box)
 
+
     def draw_enemy(self, box, enemy):
         #pygame.draw.rect(self._screen, [255,255,255], box)
         self._screen.blit(enemy.img, enemy.cords)
         health=enemy.health
         cords=enemy.cords
-        self.get_text(str(str(health)), cords, [255,255,255])
+        #self.get_text(str(str(health)), cords, [255,255,255])
+
 
     def iterate_enemies(self, fire_check, s_fire_check):
         player_box=self.player.return_box()
@@ -836,22 +973,24 @@ class Game:
                 self.draw_enemy(box, enemy)
                 self.check_colision(player, player_cords, index, index2, enemy, box, player_box)
                 if fire_check:
-                    damage=self.player.gun.return_damage()
+                    damage=self.player.return_damage()
                     alive=self.check_colisions_laser(laser_box[0], index, index2, enemy, box, damage)
 
                 if s_fire_check and alive:
-                    damage=self.player.secondary_gun.return_damage()/5
+                    damage=self.player.return_S_damage()
                     alive=self.check_colisions_laser(s_laser_box[0], index, index2, enemy, box, damage)
                     if alive:
                         self.check_colisions_laser(s_laser_box[1], index, index2, enemy, box, damage)
 
                 self.delete_enemies(index, index2, enemy)
 
+
     def delete_enemies(self, index, index2, enemy):
         if enemy.check_map():
             self._enemies[index].pop(index2)
         else:
             pass
+
 
     def check_colision(self, player, player_cords, index, index2, enemy, box, player_box):
         if box.colliderect(player_box):
@@ -872,6 +1011,7 @@ class Game:
             else:
                 self.end_game()
 
+
     def check_colisions_laser(self, laser_box, index, index2, enemy, box, damage):
         if box.colliderect(laser_box):
             alive=enemy.get_damage(damage)
@@ -888,9 +1028,11 @@ class Game:
         else:
             return True
 
+
     def end_game(self):
         #self.end_screen()
         self.status=False
+
 
     def end_screen(self, mes):
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
@@ -904,12 +1046,14 @@ class Game:
         self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-100, screen_y/2+50])
 
 
+
 class Level(Game):
 
     def __init__(self, screen, player, hardness, enemies, seed, aim):
         super().__init__(screen, player, hardness, enemies, seed)
 
         self.aim=aim
+
 
     def check_aim(self):
         ret=self.aim.check_aims(
@@ -920,10 +1064,11 @@ class Level(Game):
         )
         return ret
 
-    def frame(self, dir, fire, s_fire, fps):
+
+    def frame(self, dir, fire, s_fire, special, fps):
         check2=self.check_aim()
 
-        check=super().frame(dir, fire, s_fire, fps)
+        check=super().frame(dir, fire, s_fire, special, fps)
 
         if check[0]:
             pass
@@ -942,6 +1087,7 @@ class Level(Game):
                 break
 
         return ret, mes
+
 
 
 class Aim:
@@ -967,6 +1113,7 @@ class Aim:
             if values[name]!=None and name!="self":
                 self.types[values[name][1]][name]=[values[name][0], False]
 
+
     def check_aims(self, **kwargs):
         rets=[]
         for aims in self.aims.values():
@@ -975,6 +1122,7 @@ class Aim:
                 ret=aims[1](kwargs, aims[0])
                 rets.append(ret)
         return rets
+
 
     def check_min(self, kwargs, aims):
         for name, goal in aims.items():
@@ -987,6 +1135,7 @@ class Aim:
 
         return ret, "You win"
 
+
     def check_max(self, kwargs, aims):
         for name, goal in aims.items():
             if kwargs[name]>=goal[0]:
@@ -997,6 +1146,7 @@ class Aim:
             ret=ret and suc[1]
 
         return ret, "You lost"
+
 
     def return_aim(self):
         texts=[]
@@ -1014,10 +1164,11 @@ class Aim:
         return texts
 
 
+
 def main():
     pygame.init()
     pygame.display.set_caption("Space game")
-    screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    screen=pygame.display.set_mode((0, 0))#, pygame.FULLSCREEN)
     global screen_x, screen_y #globalises the hight and the width of the screen
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
 

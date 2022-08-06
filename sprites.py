@@ -29,6 +29,19 @@ class player:
         self.kills=0
         self.damage=0
 
+        #self.special="kill switch"
+        #self.special="shild"
+        self.special="multi"
+
+        self.shild=False
+        self.pac=False
+        self.sh_timer=0
+        self.pac_timer=0
+
+        self.damage_multi=1
+        self.thrust_multi=1
+        self.multi_timer=0
+
         self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
         self.ship=pygame.transform.scale(self.ship, self.size)
 
@@ -40,60 +53,121 @@ class player:
             ]
         ]
 
+        self.spec_guns={
+            "rand": rand_gun
+        }
+
+
     def normalise_place(self, place):
         return [place[0]*self.size[0], place[1]*self.size[1]]
 
+
     def load_gun(self, gune):
+        if len(gune)!=5:
+            self.gun=self.spec_guns[gune[-1]](gune[0:-1], self.gun_places[0])
+            return None
         self.gun=gun(gune, self.gun_places[0])
 
+
     def load_S_gun(self, gune):
+        if len(gune)!=5:
+            self.secondary_gun=secondary_gun((0, 0, [0, 0], 1, 0), self.gun_places[1])
+            return None
         self.secondary_gun=secondary_gun(gune, self.gun_places[1])
+
 
     def move(self):
         self.cords[0]+=(self.horizontal*self.modifier)
         self.cords[1]+=(self.vertical*self.modifier)
         self.teleport()
 
+
     def update_velocity(self):
         self.vertical+=self.vertical_ac
         self.horizontal+=self.horizontal_ac-self.recoil
 
+
     def vertical_thrust(self, direction=1):
-        self.vertical_ac=self.acceleration_mod*direction
+        self.vertical_ac=self.acceleration_mod*direction*self.thrust_multi
+
 
     def horixontal_thrust(self, direction=1):
-        self.horizontal_ac=self.acceleration_mod*direction
+        self.horizontal_ac=self.acceleration_mod*direction*self.thrust_multi
+
 
     def resert_recoil(self):
         self.recoil=0
 
+
     def fire(self, gun):
+        if self.pac:
+            return None
         if gun.check_fire():
             self.recoil+=(gun.get_recoil()/self.mass)
             gun.fire()
-            return True
-        return None
+            return True #The gun has fired
+        return None #The gun cannot fire
+
+
+    def add_shild(self):
+        self.shild=True
+        self.pac=True
+        self.sh_timer=600
+        self.pac_timer=1200
+
+
+    def check_shild(self):
+        if self.sh_timer==0:
+            self.shild=False
+        else:
+            self.sh_timer-=1
+        if self.pac_timer==0:
+            self.pac=False
+        else:
+            self.pac_timer-=1
+
+
+    def add_multi(self):
+        self.damage_multi=5
+        self.thrust_multi=0.2
+        self.multi_timer=1200
+
+
+    def check_multi(self):
+        if self.multi_timer==0:
+            self.damage_multi=1
+            self.thrust_multi=1
+        else:
+            self.multi_timer-=1
+
 
     def loose_life(self):
+        if self.shild:
+            return True
         self.life-=1
         if self.life==0:
             return False
         else:
             return True
 
+
     def gain_kills(self):
         self.kills+=1
         self.score+=1
 
+
     def gain_score(self):
         self.score+=1
+
 
     def gain_damage(self, damage):
         self.damage+=damage
         self.score+=1
 
+
     def return_cords(self):
         return self.cords
+
 
     def return_box(self):
         box=pygame.Rect(self.cords, self.size) # The actuall box
@@ -101,14 +175,26 @@ class player:
         #box2=pygame.Rect([self.cords[0]+self.size[0]/3, self.cords[1]+self.size[1]/2-self.size[1]/5], [self.size[0]*2/3, self.size[1]*2/5])
         return box#, box2, self.ship'''
 
+
     def return_img(self):
         return self.ship
+
 
     def return_gun_box(self):
         return self.gun.return_box(self.cords)
 
+
     def return_S_gun_box(self):
         return self.secondary_gun.return_box(self.cords)
+
+
+    def return_damage(self):
+        return self.gun.return_damage()*self.damage_multi
+
+
+    def return_S_damage(self):
+        return self.secondary_gun.return_damage()*0.2*self.damage_multi
+
 
     def teleport(self):
         if self.cords[0]>self.map_size[0]-self.size[0]:
@@ -128,6 +214,7 @@ class player:
         while self.cords[1]<0:
             self.cords[1]+=self.map_size[1]'''
 
+
     def overspeed(self):
         check=[
             self.cords[0]==0 and self.horizontal<-1,
@@ -139,6 +226,7 @@ class player:
             self.horizontal=0
             return self.loose_life()
         return True
+
 
 
 class gun:
@@ -160,37 +248,57 @@ class gun:
 
         self.place=place
 
+
     def reload(self):
         self.reloadTime=copy(self.max_reload)
 
+
     def reload_timer(self):
         if self.ammo<self.max_ammo:
-            self.ammo+=int(self.max_ammo/self.reloadTime)
+            self.ammo+=int(self.max_ammo/self.reloadTime) #The gun is still reloading
         else:
-            self.ammo=copy(self.max_ammo)
+            self.ammo=copy(self.max_ammo) #The gun has reloaded
         self.reloadTime-=1
+
 
     def check_fire(self):
         if self.reloadTime==0:
-            return True
+            return True #The gun can fire
         else:
-            return False
+            return False #The gun is currently reloading
+
 
     def fire(self):
         self.ammo-=1
         if self.ammo==0:
             self.reload()
 
+
     def get_recoil(self):
         return self.recoil
 
+
     def return_damage(self):
         return self.damage
+
 
     def return_box(self, pos):
         pos=[self.place[0]+pos[0], self.place[1]+pos[1]-self.laser_size[1]/2]
         box=pygame.Rect(pos, self.laser_size)
         return [box]
+
+
+
+class rand_gun(gun):
+
+    def fire(self):
+        self.ammo-=1
+        if self.ammo==0:
+            self.reload()
+            dirn=randint(0, 1)
+            dirn=dirn*2-1
+            self.recoil*=dirn
+
 
 
 class secondary_gun(gun):
@@ -201,6 +309,7 @@ class secondary_gun(gun):
         box=pygame.Rect(pos1, self.laser_size)
         box2=pygame.Rect(pos2, self.laser_size)
         return [box, box2]
+
 
 
 class enemy:
@@ -217,15 +326,18 @@ class enemy:
         self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
         self.img=pygame.transform.scale(self.img, self.size)
 
+
     def move(self):
         self.cords[0]-=self.speed
 
+
     def get_damage(self, damage):
-        self.health-=damage
+        self.health=int(self.health-damage)
         if self.health<=0:
             return False
         else:
             return True
+
 
     def check_map(self):
         if self.cords[0]<0-self.size[0]:
@@ -233,15 +345,38 @@ class enemy:
         else:
             return False
 
+
     def return_size(self):
         return self.size
 
+
     def return_cords(self):
         return self.cords
+
 
     def return_box(self):
         box=pygame.Rect(self.cords, self.size) # The actuall box
         return box
 
+
     def return_img(self):
         return self.img
+
+
+
+class star(enemy):
+
+    def __init__(self, inputs, image):
+        health, speed, size, img, screen_x, screen_y=inputs
+
+        self.health=health
+        self.speed=speed
+        self.size=size
+
+        self.cords=[screen_x+self.size[0], randint(0, screen_y-self.size[1])]
+
+        self.img=image
+        #self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
+        #self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
+        #self.img.set_alpha(128)
+        self.img=pygame.transform.scale(self.img, self.size)
