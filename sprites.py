@@ -1,6 +1,6 @@
 from copy import copy
 import pygame
-from random import randint
+from random import randint, uniform
 
 class player:
 
@@ -366,7 +366,19 @@ class enemy:
 
 class star(enemy):
 
+    def randomise(self, mi, ma, po):
+        out=uniform(mi**po, ma**po)
+        out=int(out**(1/po))
+        return out
+
+
     def __init__(self, inputs, image):
+        size=inputs[2]
+        size1=self.randomise(size[0], size[1], 1/2)
+        size2=self.randomise(size[0], size[1], 2)
+        size=int((size1+size2)/2)
+        inputs[2]=[size, size]
+
         health, speed, size, img, screen_x, screen_y=inputs
 
         self.health=health
@@ -379,4 +391,6 @@ class star(enemy):
         #self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
         #self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
         #self.img.set_alpha(128)
+        alph=self.randomise(48, 160, 1/3)
+        self.img.set_alpha(randint(64, 160))
         self.img=pygame.transform.scale(self.img, self.size)

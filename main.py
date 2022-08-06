@@ -663,8 +663,7 @@ class Game:
         img="test1.png"
         #img="star2.png"
         self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
-        self.img.set_alpha(128)
-        self.bc=[1, 8, [], img, screen_x, screen_y]
+        self.bc=[1, 10, [10, 70], img, screen_x, screen_y]
 
         self.all_bc=[]
 
@@ -840,12 +839,8 @@ class Game:
 
     def add_stars(self):
         rem=[]
-        if randint(0, 100)>70:
-            po=(1/2)
-            size=uniform(10**po, 70**po)
-            size=int(size**(1/po))
+        if randint(0, 100)>40:
             stats=copy(self.bc)
-            stats[2]=[size, size]
             new_bc=sprites.star(stats, self.img)
             for bc in self.all_bc:
                 if bc.return_box().colliderect(new_bc.return_box()):
@@ -1168,7 +1163,7 @@ class Aim:
 def main():
     pygame.init()
     pygame.display.set_caption("Space game")
-    screen=pygame.display.set_mode((0, 0))#, pygame.FULLSCREEN)
+    screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     global screen_x, screen_y #globalises the hight and the width of the screen
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
 
