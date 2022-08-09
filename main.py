@@ -674,7 +674,6 @@ class Game:
 
         self._screen=screen
         self.player=player
-        print(player)
 
         self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
 
@@ -876,7 +875,6 @@ class Game:
         pos=up_pos(pos, 1, width)
 
         c, vals=self.player.return_special()
-        print(vals)
         for i in range(c):
             j=2*i
             self.show_slider(vals[j+1], vals[j], pos, hight, width)
