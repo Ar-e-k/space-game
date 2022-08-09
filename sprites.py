@@ -29,18 +29,31 @@ class player:
         self.kills=0
         self.damage=0
 
-        #self.special="kill switch"
-        #self.special="shild"
-        self.special="multi"
-
         self.shild=False
         self.pac=False
         self.sh_timer=0
         self.pac_timer=0
+        self.mx_sh=600
+        self.mx_pac=1200
 
         self.damage_multi=1
         self.thrust_multi=1
         self.multi_timer=0
+        self.mx_multi=1200
+
+        self.specials={
+            "kill switch": None,
+            "shild": self.check_shild,
+            "multi": self.check_multi
+        }
+        self.spec_ret={
+            "kill switch": lambda: [0, []],
+            "shild": lambda: [2, [self.sh_timer, self.mx_sh, self.pac_timer, self.mx_pac]],
+            "multi": lambda: [1, [self.multi_timer, self.mx_multi]]
+        }
+        #self.special="kill switch"
+        self.special="shild"
+        #self.special="multi"
 
         self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
         self.ship=pygame.transform.scale(self.ship, self.size)
@@ -112,8 +125,18 @@ class player:
     def add_shild(self):
         self.shild=True
         self.pac=True
-        self.sh_timer=600
-        self.pac_timer=1200
+        self.sh_timer=copy(self.mx_sh)
+        self.pac_timer=copy(self.mx_pac)
+
+
+    def add_multi(self):
+        self.damage_multi=5
+        self.thrust_multi=0.2
+        self.multi_timer=copy(self.mx_multi)
+
+
+    def check_special(self):
+        self.specials[self.special]()
 
 
     def check_shild(self):
@@ -127,18 +150,16 @@ class player:
             self.pac_timer-=1
 
 
-    def add_multi(self):
-        self.damage_multi=5
-        self.thrust_multi=0.2
-        self.multi_timer=1200
-
-
     def check_multi(self):
         if self.multi_timer==0:
             self.damage_multi=1
             self.thrust_multi=1
         else:
             self.multi_timer-=1
+
+
+    def return_special(self):
+        return self.spec_ret[self.special]()
 
 
     def loose_life(self):
@@ -287,6 +308,9 @@ class gun:
         box=pygame.Rect(pos, self.laser_size)
         return [box]
 
+
+    def return_slides(self):
+        return self.ammo, self.reloadTime, self.max_ammo, self.max_reload
 
 
 class rand_gun(gun):

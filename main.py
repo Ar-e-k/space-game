@@ -210,7 +210,7 @@ class Menu:
             "Front recoil":(200, 5, [screen_x, 4], 100, -50),
             "Op gun":(200, 20, [screen_x, 20], 100, -50),
             "Rand gun":(5, 40, [screen_x, 150], 300, 4000, "rand"),
-            "No gun":(0, 0, [screen_x, 0], 1, 0)
+            "No gun":(0, 0, [screen_x, 0], 0, 0)
         }
 
         return guns
@@ -725,9 +725,7 @@ class Game:
             self.special_counter-=1
         if self.special_counter!=self.specials[name][1]:
             self.special_counter-=1
-
-            self.player.check_shild()
-            self.player.check_multi()
+            self.player.check_special()
 
         if self.special_counter==0:
             self.special_counter=copy(self.specials[name][1])
@@ -859,6 +857,33 @@ class Game:
             self.all_bc.pop(i)
 
 
+    def add_controls(self):
+        up_pos=lambda pos, c, w: [pos[0]+w*1.2*c, pos[1]]
+
+        hight=screen_y*0.1
+        width=screen_x*0.02
+        pos=[screen_x*0.05, screen_y*0.88]
+
+        c=self.gun_slider(self.player.gun, hight, width, pos)
+        pos=up_pos(pos, c, width)
+
+        c=self.gun_slider(self.player.secondary_gun, hight, width, pos)
+        pos=up_pos(pos, c, width)
+
+        mx=self.specials[self.player.special][1]
+        val=self.special_counter
+        self.show_slider(mx, val, pos, hight, width)
+        pos=up_pos(pos, 1, width)
+
+        c, vals=self.player.return_special()
+        print(vals)
+        for i in range(c):
+            j=2*i
+            self.show_slider(vals[j+1], vals[j], pos, hight, width)
+            pos=up_pos(pos, 1, width)
+
+
+
     def draw_background(self, fps):
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         if self.player.shild:
@@ -872,9 +897,23 @@ class Game:
         pygame.draw.rect(self._screen, col, rec)
 
         self.add_stars()
+        self.add_controls()
 
-        #return None
+        return None
 
+
+    def gun_slider(self, gun, hight, width, pos):
+        amo, reload1, mx, mxr=gun.return_slides()
+
+        if mx==mxr==0:
+            return 0
+
+        self.show_slider(mx, amo, pos, hight, width)
+        self.show_slider(mxr, reload1, [width*1.2+pos[0], pos[1]], hight, width)
+        return 2
+
+
+    def writing(self):
         ac=[
             self.player.vertical_ac,
             self.player.horizontal_ac
@@ -889,13 +928,11 @@ class Game:
         self.get_text(str("vertical velocity: "+str(round(vel[0], 5)*-1)), [600, 0])
         self.get_text(str("horizontal velocity: "+str(round(vel[1], 5))), [600, 50])
 
-        amo, reload=self.player.gun.ammo, self.player.gun.reloadTime
         self.get_text(str("ammo: "+str(amo)), [1100, 0])
-        self.get_text(str("reload: "+str(reload)), [1100, 50])
+        self.get_text(str("reload: "+str(reload1)), [1100, 50])
 
-        amo, reload=self.player.secondary_gun.ammo, self.player.secondary_gun.reloadTime
-        self.get_text(str("ammo: "+str(amo)), [1100, 100])
-        self.get_text(str("reload: "+str(reload)), [1100, 150])
+        self.get_text(str("ammo: "+str(amo2)), [1100, 100])
+        self.get_text(str("reload: "+str(reload2)), [1100, 150])
 
         health=self.player.life
         self.get_text(str("health: "+str(health)), [0, screen_y-50])
@@ -919,6 +956,24 @@ class Game:
         self.get_text(str("Distance: "+str(self.distanse)), [1000, screen_y-250])
         self.get_text(str("Pos Score change: "+str(self.pos_score_change)), [0, screen_y-300])
         self.get_text(str("Special recharge: "+str(self.special_counter)), [1000, screen_y-300])
+
+
+    def show_slider(self, mx, cur, pos, size, wid):
+        bc=[0,255,255]
+        slid=[255,0,0]
+
+        bor=size/20
+        try:
+            hight=int(cur/mx*(size-bor*2))
+        except ZeroDivisionError:
+            return None
+        pos_y=size-hight
+
+        rect=pygame.Rect(pos, [wid, size])
+        pygame.draw.rect(self._screen, bc, rect)
+
+        rec=pygame.Rect([pos[0]+bor, pos[1]+pos_y], [wid-bor*2, hight-bor/2])
+        pygame.draw.rect(self._screen, slid, rec)
 
 
     def get_text(self, text, pos, colour=[255,255,255]):
