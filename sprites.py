@@ -5,7 +5,7 @@ from random import randint, uniform
 class player:
 
     def __init__(self, stats):
-        cords, health, mass, thrust, size, map_size, ship, gun_places=stats
+        cords, health, mass, thrust, size, map_size, ship, gun_places, special=stats
 
         self.map_size=map_size
         self.life=health
@@ -51,8 +51,9 @@ class player:
             "shild": lambda: [2, [self.sh_timer, self.mx_sh, self.pac_timer, self.mx_pac]],
             "multi": lambda: [1, [self.multi_timer, self.mx_multi]]
         }
+        self.special=special
         #self.special="kill switch"
-        self.special="shild"
+        #self.special="shild"
         #self.special="multi"
 
         self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()

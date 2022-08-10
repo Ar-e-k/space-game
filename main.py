@@ -193,10 +193,14 @@ class Menu:
             ]
         ]
 
-        ship1=([100, 10], 5, 160000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 3, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
-        ship3=([100, 10], 2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
-        ship3=([100, 10], -1, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        kill="kill switch"
+        shild="shild"
+        multi="multi"
+
+        ship1=([100, 10], 5, 160000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 3, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], 2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
+        #ship3=([100, 10], -1, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
