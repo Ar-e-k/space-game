@@ -863,6 +863,15 @@ class Game:
         width=screen_x*0.02
         pos=[screen_x*0.05, screen_y*0.88]
 
+        h_mod=1.5
+        pos=up_pos(pos, -h_mod, width)
+        health=self.player.life
+        bc=[0,255,255]
+        for i in range(health):
+            rect=pygame.Rect([pos[0], pos[1]+(hight-width)-(width*1.2*i)-1], [width, width])
+            pygame.draw.rect(self._screen, bc, rect)
+        pos=up_pos(pos, h_mod, width)
+
         c=self.gun_slider(self.player.gun, hight, width, pos)
         pos=up_pos(pos, c, width)
 
@@ -879,7 +888,6 @@ class Game:
             j=2*i
             self.show_slider(vals[j+1], vals[j], pos, hight, width)
             pos=up_pos(pos, 1, width)
-
 
 
     def draw_background(self, fps):

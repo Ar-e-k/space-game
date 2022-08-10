@@ -313,6 +313,7 @@ class gun:
         return self.ammo, self.reloadTime, self.max_ammo, self.max_reload
 
 
+
 class rand_gun(gun):
 
     def fire(self):
