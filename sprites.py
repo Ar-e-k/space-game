@@ -9,6 +9,7 @@ class player:
 
         self.map_size=map_size
         self.life=health
+        self.max_life=health
 
         self.cords=cords
 
@@ -42,7 +43,7 @@ class player:
         self.mx_multi=1200
 
         self.specials={
-            "kill switch": None,
+            "kill switch": lambda: None,
             "shild": self.check_shild,
             "multi": self.check_multi
         }
@@ -51,6 +52,7 @@ class player:
             "shild": lambda: [2, [self.sh_timer, self.mx_sh, self.pac_timer, self.mx_pac]],
             "multi": lambda: [1, [self.multi_timer, self.mx_multi]]
         }
+
         self.special=special
         #self.special="kill switch"
         #self.special="shild"
@@ -93,7 +95,7 @@ class player:
     def move(self):
         self.cords[0]+=(self.horizontal*self.modifier)
         self.cords[1]+=(self.vertical*self.modifier)
-        self.teleport()
+        return self.teleport()
 
 
     def update_velocity(self):
@@ -163,6 +165,13 @@ class player:
         return self.spec_ret[self.special]()
 
 
+    def add_life(self, life):
+        if self.life+life<=self.max_life:
+            self.life+=life
+        else:
+            self.life=copy(self.max_life)
+
+
     def loose_life(self):
         if self.shild:
             return True
@@ -219,10 +228,15 @@ class player:
 
 
     def teleport(self):
+        ret=0
         if self.cords[0]>self.map_size[0]-self.size[0]:
             self.cords[0]=self.map_size[0]-self.size[0]
+            self.horizontal=0
+            ret=self.horizontal_ac
         if self.cords[0]<0:
             self.cords[0]=0
+            self.horizontal=0
+            ret=self.horizontal_ac
         if self.cords[1]>self.map_size[1]-self.size[1]:
             self.cords[1]=self.map_size[1]-self.size[1]
         if self.cords[1]<0:
@@ -235,6 +249,7 @@ class player:
             self.cords[1]-=self.map_size[1]
         while self.cords[1]<0:
             self.cords[1]+=self.map_size[1]'''
+        return ret
 
 
     def overspeed(self):
@@ -357,7 +372,11 @@ class enemy:
         self.cords[0]-=self.speed
 
 
-    def get_damage(self, damage):
+    def change_speed(self, acc):
+        self.speed=round(self.speed+acc, 5)
+
+
+    def get_damage(self, damage, *args):
         self.health=int(self.health-damage)
         if self.health<=0:
             return False
@@ -387,6 +406,18 @@ class enemy:
 
     def return_img(self):
         return self.img
+
+
+
+class enemyH(enemy):
+
+    def get_damage(self, damage, player, *args):
+        self.health=int(self.health-damage)
+        if self.health<=0:
+            player.add_life(1)
+            return False
+        else:
+            return True
 
 
 

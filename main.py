@@ -3,7 +3,7 @@ import sys
 import pickle
 from copy import deepcopy, copy
 import random
-from random import randint, uniform
+from random import randint, uniform, choice
 import sprites
 import inspect
 import pygame_textinput
@@ -199,8 +199,7 @@ class Menu:
 
         ship1=([100, 10], 5, 160000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
         ship2=([100, 10], 3, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
-        ship3=([100, 10], 2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
-        #ship3=([100, 10], -1, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], -2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
@@ -473,7 +472,7 @@ class Menu:
     def infinite_runner_init(self, player, seed=None):
         if not(seed.isdigit()):
             seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 10, self.enemies, seed)
+        play=Game(self._screen, player, 1, self.enemies, seed)
 
         self.game(play)
 
@@ -705,6 +704,7 @@ class Game:
         self.hardness=hardness
 
         self.score=0
+        self.multiplier=1
         self.score_change=0
         self.pos_score_change=0
         self.distanse=0
@@ -718,7 +718,8 @@ class Game:
     def frame(self, dir, fire, s_fire, special, fps):
         self.update_acceleration(dir)
         self.player.update_velocity()
-        self.player.move()
+        over=self.player.move()
+        self.multiplier=round(self.multiplier+over, 5)
 
         self.spawn_enemis()
 
@@ -739,9 +740,10 @@ class Game:
         s_fire_check=self.check_fire(s_fire, "S")
 
         self.draw_background(fps)
+        self.add_stars(over)
         self.draw_player()
 
-        self.iterate_enemies(fire_check, s_fire_check)
+        self.iterate_enemies(fire_check, s_fire_check, over)
 
         if fire_check:
             self.draw_fire("F")
@@ -766,6 +768,7 @@ class Game:
         score+=(0.5*screen_y-abs(pos[1]-0.5*screen_y))
         self.pos_score_change=[int(score), round(((score/1000)**1.5)*0.5, 5)]
         self.score_change=(round(score/1000, 2)**1.5)*0.5
+        self.score_change*=self.multiplier
         self.score+=self.score_change
         self.player.gain_score()
 
@@ -785,7 +788,11 @@ class Game:
 
     def spawn_enemy(self, enemy, enemy_type):
         stats=deepcopy(self._possible_enemies[enemy])
-        box1=sprites.enemy(stats)
+        lis=[sprites.enemy]*10+[sprites.enemyH]
+        en=random.choice(lis)
+        stats=list(stats)
+        stats[1]+=self.multiplier-1
+        box1=en(stats)
         if self.check_spawn_place(box1):
             self._enemies[enemy_type].append(box1)
         else:
@@ -838,10 +845,12 @@ class Game:
             self.end_game()
 
 
-    def add_stars(self):
+    def add_stars(self, over):
         rem=[]
         if randint(0, 100)>40:
             stats=copy(self.bc)
+            stats=list(stats)
+            stats[1]+=self.multiplier-1
             new_bc=sprites.star(stats, self.img)
             for bc in self.all_bc:
                 if bc.return_box().colliderect(new_bc.return_box()):
@@ -852,6 +861,7 @@ class Game:
                 self.all_bc.append(new_bc)
 
         for pos, bc in enumerate(self.all_bc):
+            bc.change_speed(over)
             bc.move()
             if bc.check_map():
                 rem.append(pos)
@@ -906,8 +916,10 @@ class Game:
             #col=[0, 98, 166]
         pygame.draw.rect(self._screen, col, rec)
 
-        self.add_stars()
         self.add_controls()
+
+        health=self.multiplier
+        self.get_text(str("multi "+str(health)), [0, 50])
 
         return None
 
@@ -1010,12 +1022,12 @@ class Game:
     def draw_enemy(self, box, enemy):
         #pygame.draw.rect(self._screen, [255,255,255], box)
         self._screen.blit(enemy.img, enemy.cords)
-        health=enemy.health
+        health=enemy.speed
         cords=enemy.cords
         #self.get_text(str(str(health)), cords, [255,255,255])
 
 
-    def iterate_enemies(self, fire_check, s_fire_check):
+    def iterate_enemies(self, fire_check, s_fire_check, over):
         player_box=self.player.return_box()
         player=self.player.return_img()
         player=pygame.mask.from_surface(player)
@@ -1025,6 +1037,7 @@ class Game:
         s_laser_box=self.player.return_S_gun_box()
         for index, enemies in enumerate(self._enemies):
             for index2, enemy in enumerate(enemies):
+                enemy.change_speed(over)
                 enemy.move()
 
                 alive=True
@@ -1074,7 +1087,7 @@ class Game:
 
     def check_colisions_laser(self, laser_box, index, index2, enemy, box, damage):
         if box.colliderect(laser_box):
-            alive=enemy.get_damage(damage)
+            alive=enemy.get_damage(damage, self.player)
             self.player.gain_damage(damage)
             if alive:
                 return True
