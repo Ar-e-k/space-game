@@ -1272,7 +1272,6 @@ def main():
     pygame.display.set_caption("Space game")
 
     prop=round(x/y, 1)
-    test=3000
 
     if test:
         screen=pygame.display.set_mode((int(test*16/9), test))
