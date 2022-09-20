@@ -498,6 +498,7 @@ class Menu:
 
     #Main game loop
     def game(self, play):
+        play.start_stars()
         pygame.mouse.set_visible(False)
 
         playing=True #Determines is the game on or not
@@ -740,7 +741,7 @@ class Game:
         s_fire_check=self.check_fire(s_fire, "S")
 
         self.draw_background(fps)
-        self.add_stars(over)
+        self.add_stars(over=over)
         self.draw_player()
 
         self.iterate_enemies(fire_check, s_fire_check, over)
@@ -845,12 +846,25 @@ class Game:
             self.end_game()
 
 
-    def add_stars(self, over):
+    def start_stars(self):
+        stats=copy(self.bc)
+        stats=list(stats)
+        max_x=stats[4]
+        cur_x=0
+        speed=stats[1]
+        while cur_x<max_x:
+            self.add_stars(x_cord=cur_x)
+            cur_x+=speed
+
+
+    def add_stars(self, over=0, x_cord=False):
         rem=[]
         if randint(0, 100)>40:
             stats=copy(self.bc)
             stats=list(stats)
             stats[1]+=self.multiplier-1
+            if x_cord:
+                stats[4]=x_cord
             new_bc=sprites.star(stats, self.img)
             for bc in self.all_bc:
                 if bc.return_box().colliderect(new_bc.return_box()):
@@ -859,6 +873,9 @@ class Game:
                     pass
             else:
                 self.all_bc.append(new_bc)
+
+        if x_cord:
+            return None
 
         for pos, bc in enumerate(self.all_bc):
             bc.change_speed(over)
@@ -1021,7 +1038,11 @@ class Game:
 
     def draw_enemy(self, box, enemy):
         #pygame.draw.rect(self._screen, [255,255,255], box)
-        self._screen.blit(enemy.img, enemy.cords)
+        try:
+            self._screen.blit(enemy.img, enemy.cords)
+        except AttributeError:
+            print(self._screen)
+            print(type(self._screen))
         health=enemy.speed
         cords=enemy.cords
         #self.get_text(str(str(health)), cords, [255,255,255])
