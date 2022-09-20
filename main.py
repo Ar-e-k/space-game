@@ -1263,7 +1263,7 @@ class Aim:
 
 
 
-def main():
+def main(test=False):
     pygame.init()
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     x, y=pygame.display.Info().current_w, pygame.display.Info().current_h
@@ -1295,6 +1295,7 @@ def main():
 
     current_game=Menu(screen, [screen_x, screen_y])
     #current_game.pick_ship()
+    return current_game
 
 if __name__=="__main__":
     main()
