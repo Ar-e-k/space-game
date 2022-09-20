@@ -15,7 +15,7 @@ class Menu:
         self._screen=screen
         self.screen_size=screen_size
 
-        self._font=pygame.font.Font('freesansbold.ttf', 32)
+        self._font=pygame.font.Font('freesansbold.ttf', int(32*sc_x))
 
         self.ships=self.define_ships()
         self.guns=self.define_guns()
@@ -197,9 +197,10 @@ class Menu:
         shild="shild"
         multi="multi"
 
-        ship1=([100, 10], 5, 160000, 200, [180, 150], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 3, 80000, 200, [104, 78], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
-        ship3=([100, 10], -2, 40000, 300, [64, int(78*(64/104))], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
+
+        ship1=([100, 10], 5, 160000, 200, [int(180*sc_x), int(150*sc_y)], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 3, 80000, 200, [int(104*sc_x), int(78*sc_y)], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], -2, 40000, 300, [int(64*sc_x), int(78*(64/104)*sc_y)], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
@@ -208,11 +209,11 @@ class Menu:
 
     def define_guns(self):
         guns={
-            "Basic gun":(50, 10, [screen_x, 10], 200, 400),
+            "Basic gun":(50, 10, [screen_x, int(10*sc_y)], 200, 400),
             "Cleaner":(50, 10000, [screen_x, 2*screen_y], 0, 0),
-            "Front recoil":(200, 5, [screen_x, 4], 100, -50),
-            "Op gun":(200, 20, [screen_x, 20], 100, -50),
-            "Rand gun":(5, 40, [screen_x, 150], 300, 4000, "rand"),
+            "Front recoil":(200, 5, [screen_x, int(4*sc_y)], 100, -50),
+            "Op gun":(200, 20, [screen_x, int(20*sc_y)], 100, -50),
+            "Rand gun":(5, 40, [screen_x, int(150*sc_y)], 300, 4000, "rand"),
             "No gun":(0, 0, [screen_x, 0], 0, 0)
         }
 
@@ -220,10 +221,11 @@ class Menu:
 
 
     def define_enemies(self):
+        de=lambda x: [int(x*sc_x) for i in range(2)]
         enemies={
-            "Meteor":(80, 3, [100, 100], "Meteor.png", self.screen_size[0], self.screen_size[1]),
-            "Meteor2":(150, 1, [150, 150], "Meteor.png", self.screen_size[0], self.screen_size[1]),
-            "Meteor3":(300, 0.5, [200, 200], "Meteor.png", self.screen_size[0], self.screen_size[1])
+            "Meteor":(80, 3, de(100), "Meteor.png", self.screen_size[0], self.screen_size[1]),
+            "Meteor2":(150, 1, de(150), "Meteor.png", self.screen_size[0], self.screen_size[1]),
+            "Meteor3":(300, 0.5, de(200), "Meteor.png", self.screen_size[0], self.screen_size[1])
         }
         return enemies
 
@@ -262,7 +264,7 @@ class Menu:
             text_color=(0,255,0),
             cursor_color=(0,255,0),
             font_family='freesansbold.ttf',
-            font_size=32
+            font_size=int(32*sc_x)
             )
 
         while running:
@@ -667,7 +669,7 @@ class Game:
         img="test1.png"
         #img="star2.png"
         self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
-        self.bc=[1, 10, [10, 70], img, screen_x, screen_y]
+        self.bc=[1, 10, [int(10*sc_x), int(70*sc_x)], img, screen_x, screen_y]
 
         self.all_bc=[]
 
@@ -679,7 +681,7 @@ class Game:
         self._screen=screen
         self.player=player
 
-        self._font=pygame.font.Font('freesansbold.ttf', 32) #the normal font used to display stuff
+        self._font=pygame.font.Font('freesansbold.ttf', int(32*sc_x)) #the normal font used to display stuff
 
         self._enemies=[]
         self._possible_enemies=enemies
@@ -719,7 +721,7 @@ class Game:
     def frame(self, dir, fire, s_fire, special, fps):
         self.update_acceleration(dir)
         self.player.update_velocity()
-        over=self.player.move()
+        over=self.player.move(sc_x, sc_y)
         self.multiplier=round(self.multiplier+over, 5)
 
         self.spawn_enemis()
@@ -879,7 +881,7 @@ class Game:
 
         for pos, bc in enumerate(self.all_bc):
             bc.change_speed(over)
-            bc.move()
+            bc.move(sc_x)
             if bc.check_map():
                 rem.append(pos)
             self.draw_enemy(None, bc)
@@ -1059,7 +1061,7 @@ class Game:
         for index, enemies in enumerate(self._enemies):
             for index2, enemy in enumerate(enemies):
                 enemy.change_speed(over)
-                enemy.move()
+                enemy.move(sc_x)
 
                 alive=True
                 box=enemy.return_box()
@@ -1132,12 +1134,14 @@ class Game:
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [0,0,0], rec)
 
-        self.get_text(mes, [screen_x/2-100, screen_y/2-150])
+        base=int(50*sc_x)
 
-        self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-100, screen_y/2-100])
-        self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-100, screen_y/2-50])
-        self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-100, screen_y/2])
-        self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-100, screen_y/2+50])
+        self.get_text(mes, [screen_x/2-base*2, screen_y/2-base*3])
+
+        self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-base*2, screen_y/2-base*2])
+        self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-base*2, screen_y/2-base])
+        self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-base*2, screen_y/2])
+        self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-base*2, screen_y/2+base])
 
 
 
@@ -1261,10 +1265,34 @@ class Aim:
 
 def main():
     pygame.init()
-    pygame.display.set_caption("Space game")
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-    global screen_x, screen_y #globalises the hight and the width of the screen
+    x, y=pygame.display.Info().current_w, pygame.display.Info().current_h
+    pygame.quit()
+    pygame.init()
+    pygame.display.set_caption("Space game")
+
+    prop=round(x/y, 1)
+    test=3000
+
+    if test:
+        screen=pygame.display.set_mode((int(test*16/9), test))
+    elif prop==1.8:
+        screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    elif prop>1.8:
+        screen=pygame.display.set_mode((int(y*16/9), y))#, pygame.FULLSCREEN)
+    elif prop<1.8:
+        screen=pygame.display.set_mode((x, int(x*9/16)))#, pygame.FULLSCREEN)
+
+    global screen_x, screen_y #globalises the hight and the width of the screen,
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
+    print(screen_x, screen_y)
+
+
+    global sc_x, sc_y
+    ref_x=1366
+    ref_y=768
+    sc_x=screen_x/ref_x
+    sc_y=screen_y/ref_y
 
     current_game=Menu(screen, [screen_x, screen_y])
     #current_game.pick_ship()

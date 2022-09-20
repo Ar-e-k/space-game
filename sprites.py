@@ -92,9 +92,9 @@ class player:
         self.secondary_gun=secondary_gun(gune, self.gun_places[1])
 
 
-    def move(self):
-        self.cords[0]+=(self.horizontal*self.modifier)
-        self.cords[1]+=(self.vertical*self.modifier)
+    def move(self, sc_x, sc_y):
+        self.cords[0]+=(self.horizontal*self.modifier*sc_x)
+        self.cords[1]+=(self.vertical*self.modifier*sc_y)
         return self.teleport()
 
 
@@ -368,8 +368,8 @@ class enemy:
         self.img=pygame.transform.scale(self.img, self.size)
 
 
-    def move(self):
-        self.cords[0]-=self.speed
+    def move(self, sc_x):
+        self.cords[0]-=int(self.speed*sc_x)
 
 
     def change_speed(self, acc):
