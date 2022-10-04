@@ -43,14 +43,14 @@ class player:
         self.mx_multi=1200
 
         self.specials={
-            "kill switch": lambda: None,
+            "kill switch": self.return_none,
             "shild": self.check_shild,
             "multi": self.check_multi
         }
         self.spec_ret={
-            "kill switch": lambda: [0, []],
-            "shild": lambda: [2, [self.sh_timer, self.mx_sh, self.pac_timer, self.mx_pac]],
-            "multi": lambda: [1, [self.multi_timer, self.mx_multi]]
+            "kill switch": 1, #lambda: [0, []],
+            "shild": 1, #lambda: [2, [self.sh_timer, self.mx_sh, self.pac_timer, self.mx_pac]],
+            "multi": 1 #lambda: [1, [self.multi_timer, self.mx_multi]]
         }
 
         self.special=special
@@ -58,8 +58,8 @@ class player:
         #self.special="shild"
         #self.special="multi"
 
-        self.ship=pygame.image.load("Models/Ships/"+ship).convert_alpha()
-        self.ship=pygame.transform.scale(self.ship, self.size)
+        self.ship_name=ship
+        self.ship=None
 
         self.gun_places=[
             self.normalise_place(gun_places[0]),
@@ -72,6 +72,15 @@ class player:
         self.spec_guns={
             "rand": rand_gun
         }
+
+
+    def return_none(self):
+        return None
+
+
+    def add_pygame(self):
+        self.ship=pygame.image.load("Models/Ships/"+self.ship_name).convert_alpha()
+        self.ship=pygame.transform.scale(self.ship, self.size)
 
 
     def normalise_place(self, place):
@@ -162,6 +171,7 @@ class player:
 
 
     def return_special(self):
+        return None
         return self.spec_ret[self.special]()
 
 
@@ -360,11 +370,17 @@ class enemy:
 
         self.health=health
         self.speed=speed
+        self.base_speed=speed
         self.size=size
 
         self.cords=[screen_x+self.size[0], randint(0, screen_y-self.size[1])]
 
-        self.img=pygame.image.load("Models/Enemies/"+img).convert_alpha()
+        self.img_name=img
+        self.img=None
+
+
+    def add_pygame(self):
+        self.img=pygame.image.load("Models/Enemies/"+self.img_name).convert_alpha()
         self.img=pygame.transform.scale(self.img, self.size)
 
 
@@ -373,7 +389,9 @@ class enemy:
 
 
     def change_speed(self, acc):
-        self.speed=round(self.speed+acc, 5)
+        self.speed=int(self.base_speed+acc)
+        if self.speed==0:
+            self.speed=1
 
 
     def get_damage(self, damage, *args):
@@ -441,6 +459,7 @@ class star(enemy):
         self.health=health
         self.speed=speed
         self.size=size
+        self.base_speed=speed
 
         self.cords=[screen_x+self.size[0], randint(0, screen_y-self.size[1])]
 

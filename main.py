@@ -1,21 +1,91 @@
-import pygame
 import sys
+import os
+
+import pygame
 import pickle
-from copy import deepcopy, copy
+import dill
+
+from copy import copy
+from copy import deepcopy as dp
+
+import neat
+
+import multiprocessing as mp
+from multiprocessing import Pool
+
 import random
 from random import randint, uniform, choice
-import sprites
+
 import inspect
+
 import pygame_textinput
+import sprites
+import visualise as vis
+
+def evolv_Smain(ge, games, nets, props, rng, fpsclock=None, dis=False):
+    rem=[]
+    trans=dict(zip([i for i in rng], [i for i in rng]))
+    playing=True
+    or_rng=dp(rng)
+    start=min(or_rng)
+    ln=len(or_rng)
+
+    while playing:
+        rem=[]
+        for i in range(start, start+ln):
+            try:
+                game=games[i]
+            except IndexError:
+                continue
+            ins=props[i]
+
+            plr=game.player
+            inputs_1=(
+                plr.cords[0]-screen_x/2,
+                plr.cords[1]-screen_y/2,
+                plr.vertical,
+                plr.horizontal
+            )
+            inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+            outs=nets[i].activate(inputs)
+            dirn=[round(i) for i in outs[0:2]]
+
+            pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=fpsclock, dis=dis)
+
+            if not(pl):
+                rem.append(i)
+
+            ge[trans[i]].fitness=game.score
+            if pl and game.multiplier<0:
+                rem.append(i)
+                ge[trans[i]].fitness=-1000
+
+        rem.sort()
+
+        for j in rem[::-1]:
+            ln-=1
+            for key, val in trans.items():
+                if key>j:
+                    trans[key-1]=val
+
+            #ge.pop(j)
+            nets.pop(j)
+            games.pop(j)
+            props.pop(j)
+
+        if ln==0:
+            playing=False
+            return [ge, or_rng]
 
 
 class Menu:
 
-    def __init__(self, screen, screen_size):
+    def __init__(self, screen, screen_size, sc_x):
         self._screen=screen
         self.screen_size=screen_size
+        self.sc_x=sc_x
 
-        self._font=pygame.font.Font('freesansbold.ttf', int(32*sc_x))
+        self._font=pygame.font.Font('freesansbold.ttf', int(32*self.sc_x))
 
         self.ships=self.define_ships()
         self.guns=self.define_guns()
@@ -26,8 +96,10 @@ class Menu:
         self.secondary_gun_selected=None
 
         self.actions={
-            "New game":lambda:self.get_input(self.infinite_runner_init, self.infinite_runner_display),
-            "Levels":lambda:self.get_input(self.level_runner_init, self.level_runner_display),
+            "New game":lambda:self.get_input(lambda x: self.check_game(self.infinite_runner_init, x), self.infinite_runner_display),
+            "Levels":lambda:self.get_input(lambda x: self.check_game(self.level_runner_init, x), self.level_runner_display),
+            "Evolv":lambda:self.get_input(lambda x: self.evolv_init(x), self.evolv_display, True),
+            "Op play":lambda:self.get_input(lambda x: self.run_winner(x), self.evolv_display, True),
             "Select ship":lambda:self.pick_menu(self.ships, self.pick_ship),
             "Select gun":lambda:self.pick_menu(self.guns, self.pick_gun),
             "Select secondary gun":lambda:self.pick_menu(self.guns, self.pick_secondary_gun),
@@ -60,8 +132,6 @@ class Menu:
         }
 
         self.load_result()
-
-        self.main_menu()
 
 
     def buttons(self, options_texts):
@@ -176,6 +246,354 @@ class Menu:
             self.get_text(text, pos, [255,255,255])
 
 
+    def evolv_display(self, textinput, cursor_pos, mouse_pos):
+        text, cursor_vis, cursor=textinput.return_info_needed()
+        text_width, text_height=self._font.size(text)
+
+        rect_size=[self.screen_size[0]/4+text_width, self.screen_size[1]/6]
+        rec=pygame.Rect(self.screen_size[0]/2-rect_size[0]/2, self.screen_size[1]/2, rect_size[0], rect_size[1])
+        pygame.draw.rect(self._screen, [255,0,0], rec)
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4
+        )
+        self.get_text("Input the save names", pos, [0,255,0], True)
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/4+text_height
+        )
+        self.get_text("Saves avaliable to restore", pos, [0,255,0], True)
+
+        folders=[]
+        path=str(os.getcwd()+"/evolv_info")
+        dir_list=os.listdir(path)
+        for name in dir_list:
+            folders.append(name)
+        #pos=(
+        #    self.screen_size[0]/2,
+        #    self.screen_size[1]/4+text_height*2
+        #)
+        #self.get_text(folders, pos, [0,255,0], True)
+
+        for i in range(0, 10):
+            pos=(
+                10,
+                self.screen_size[1]/4+i*text_height
+            )
+            try:
+                mes=folders[i]
+            except IndexError:
+                break
+            size=self._font.size(mes)
+            rec=pygame.Rect(pos, size)
+            if rec.collidepoint(mouse_pos):
+                if text=="":
+                    textinput.input_string=str(mes)
+            self.get_text(mes, pos, [0,255,0])
+
+        pos=(
+            self.screen_size[0]/2,
+            self.screen_size[1]/2+rect_size[1]/2
+            )
+        self.get_text(text, pos, [0,255,0], True)
+
+        if cursor_vis:
+            pos=(
+            self.screen_size[0]/2-text_width/2+cursor_pos,
+            self.screen_size[1]/2+rect_size[1]/2-text_height/2
+            )
+            self._screen.blit(cursor, pos)
+
+
+    def prp_save(self, path, name):
+        if name in os.listdir(path):
+            dir_list=os.listdir(path+"/"+name)
+            if "winner.nnet" in dir_list:
+                p=neat.Population(config)
+            else:
+                lis=[]
+                for fil in dir_list:
+                    if "ck_neat" in fil:
+                        num=fil.split("-")[1]
+                        lis.append(int(num))
+                print(lis)
+                print(dir_list)
+                filename="/ck_neat-"+str(max(lis))
+                print(filename)
+                p=neat.Checkpointer.restore_checkpoint(path+"/"+name+filename)
+        else:
+            os.mkdir("evolv_info/"+name)
+            p=neat.Population(config)
+
+        p.add_reporter(neat.Checkpointer(generation_interval=10,filename_prefix=str("evolv_info/"+name+"/ck_neat-")))
+        return p
+
+
+    def evolv_init(self, name):
+        local_dir=os.path.dirname(__file__)
+        config_path=os.path.join(local_dir, 'config-feedforward.txt')
+
+        config=neat.config.Config(
+            neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path
+        )
+
+        if name=="":
+            p=neat.Population(config)
+        else:
+            path=local_dir+"/evolv_info"
+            p=self.prp_save(path, name)
+
+        p.add_reporter(neat.StdOutReporter(True))
+        stats=neat.StatisticsReporter()
+        p.add_reporter(stats)
+
+        winner=p.run(self.evolv_main2,1)
+        win=p.best_genome
+
+        pickle.dump(win, open("evolv_info/"+name+"/ev_winner.nnet", 'wb'))
+        pickle.dump(winner, open("evolv_info/"+name+"/winner.nnet", 'wb'))
+
+        #visualize.draw_net(config, winner, True)
+        #visualize.plot_stats(stats, ylog=False, view=True)
+        #visualize.plot_species(stats, view=True)
+
+        vis.plot_stats(stats, view=False, filename="stats.svg", pre=str("evolv_info/"+name+"/"))
+        vis.draw_net(config, winner, view=False, filename="vis", pre=str("evolv_info/"+name+"/"))
+
+        self.main_menu()
+
+
+    def evolv_main2(self, genomes, config):
+        nets=[]
+        ge=[]
+        games=[]
+        props=[]
+        pr_def={
+            "dirn":[0, 0],
+            "fire":False,
+            "s_fire":False,
+            "spc":False
+        }
+        hard=1
+
+        for _, g in genomes:
+            net=neat.nn.FeedForwardNetwork.create(g, config)
+            nets.append(net)
+
+            g.fitness=0
+            ge.append(g)
+
+            plr=self.defult_plr()
+            seed=random.randrange(sys.maxsize)
+            play=Game(None, plr, hard, self.enemies, seed, self.sc_x)
+            games.append(play)
+
+            props.append(dp(pr_def))
+
+        #self.games[0].init_dis(self._screen)
+
+        workers=mp.cpu_count()
+        rem=[]
+
+        pros=len(games)//workers
+        print(pros)
+        print(workers)
+        print(len(nets))
+        with Pool(processes=workers) as pool:
+            mp_res=[
+                pool.apply_async(
+                    evolv_Smain,
+                    (dp(ge), dp(games), dp(nets), dp(props), [j+i for j in range(pros)],)
+                ) for i in range(0, workers*pros, pros)
+            ]
+            rems=[res.get() for res in mp_res]
+
+        #for event in pygame.event.get():
+        #    if event.type==pygame.QUIT:
+        #       pygame.quit()
+        #       quit()
+
+        for ge_out, rng in rems:
+            for i in rng:
+                try:
+                    ge[i].fitness=ge_out[i].fitness
+                except KeyError:
+                    print(i)
+                    print(len(ge))
+
+        #self.get_text(str(len(self.games)), [0,0])
+        #pygame.display.flip()
+        #self.fpsclock.tick(FPS)
+
+
+        #if 0 in rem:
+        #    self.games[0].init_dis(self._screen)
+
+
+    def evolv_main(self, genomes, config):
+        nets=[]
+        ge=[]
+        games=[]
+        props=[]
+        pr_def={
+            "dirn":[0, 0],
+            "fire":False,
+            "s_fire":False,
+            "spc":False
+        }
+        hard=1
+
+        for _, g in genomes:
+            net=neat.nn.FeedForwardNetwork.create(g, config)
+            nets.append(net)
+
+            g.fitness=0
+            ge.append(g)
+
+            plr=self.defult_plr()
+            seed=random.randrange(sys.maxsize)
+            play=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x)
+            games.append(play)
+
+            props.append(dp(pr_def))
+
+
+        #games[0].init_dis(self._screen)
+
+        playing=True
+        fpsclock=pygame.time.Clock()
+        FPS=0
+        all_fps=[]
+
+        while playing:
+            for event in pygame.event.get():
+                if event.type==pygame.QUIT:
+                    pygame.quit()
+                    quit()
+
+            rem=[]
+            for i in range(len(games)):
+                ins=props[i]
+
+                dis=False
+                if i==0 and False:
+                    dis=True
+
+                game=games[i]
+                plr=game.player
+                inputs_1=(
+                        plr.cords[0]-screen_x/2,
+                        plr.cords[1]-screen_y/2,
+                        plr.vertical,
+                        plr.horizontal
+                    )
+                inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+                outs=nets[i].activate(inputs)
+                dirn=[round(i) for i in outs[0:2]]
+
+                pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=fpsclock, dis=dis)
+
+                if not(pl):
+                    rem.append(i)
+
+                ge[i].fitness=games[i].score
+                if pl and games[i].multiplier<0:
+                    rem.append(i)
+                    ge[i].fitness=games[i].score-1000
+
+            for j in rem[::-1]:
+                ge.pop(j)
+                nets.pop(j)
+                games.pop(j)
+                props.pop(j)
+
+            rec=pygame.Rect([0, 0], [100, 100])
+            pygame.draw.rect(self._screen, [0,0,0], rec)
+            self.get_text(str(len(games)), [0,0])
+            pygame.display.flip()
+            fpsclock.tick(FPS)
+            if len(games)>150:
+                all_fps.append(fpsclock.get_fps())
+
+            if len(games)==0:
+                playing=False
+                #print(sum(all_fps)/len(all_fps))
+            else:
+                if 0 in rem and False:
+                    games[0].init_dis(self._screen)
+
+
+    def sing_evl(self):
+        pass
+
+
+    def run_winner(self, name):
+        local_dir=os.path.dirname(__file__)
+        config_path=os.path.join(local_dir, 'config-feedforward.txt')
+
+        config=neat.config.Config(
+            neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path
+        )
+        plr=self.defult_plr()
+        pr_def={
+            "dirn":[0, 0],
+            "fire":False,
+            "s_fire":False,
+            "spc":False
+        }
+        hard=1
+        seed=random.randrange(sys.maxsize)
+
+        path="evolv_info/"+name+"/winner.nnet"
+        try:
+            fil=open(path, "rb")
+        except FileNotFoundError:
+            print(path, "no file")
+            self.main_menu()
+            return "Invalid file"
+        g=pickle.load(fil)
+        net=neat.nn.FeedForwardNetwork.create(g, config)
+
+        game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=True)
+
+        playing=True
+        fpsclock=pygame.time.Clock()
+        FPS=120
+
+        while playing:
+            for event in pygame.event.get():
+                if event.type==pygame.QUIT:
+                    pygame.quit()
+                    quit()
+
+            inputs_1=(
+                plr.cords[0]-screen_x/2,
+                plr.cords[1]-screen_y/2,
+                plr.vertical,
+                plr.horizontal
+            )
+            inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+            outs=net.activate(inputs)
+            dirn=[round(i) for i in outs[0:2]]
+            pl, mes=game.frame(dir=dirn, fire=False, s_fire=False, special=False, fps=fpsclock)
+
+            pygame.display.flip()
+            fpsclock.tick(FPS)
+
+            
+    def defult_plr(self):
+        gun_selected="Basic gun"
+        ship_selected="ship2"
+
+        ship_s=dp(self.ships[ship_selected])
+        player=sprites.player(ship_s)
+
+        player.load_gun(self.guns[gun_selected])
+        player.load_S_gun(self.guns["No gun"])
+        return player
+
+
     #Define ships, guns and enemy stats
     def define_ships(self):
         ship2_gun_model=[
@@ -198,9 +616,9 @@ class Menu:
         multi="multi"
 
 
-        ship1=([100, 10], 5, 160000, 200, [int(180*sc_x), int(150*sc_y)], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
-        ship2=([100, 10], 3, 80000, 200, [int(104*sc_x), int(78*sc_y)], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
-        ship3=([100, 10], -2, 40000, 300, [int(64*sc_x), int(78*(64/104)*sc_y)], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
+        ship1=([100, 10], 5, 160000, 200, [int(180*self.sc_x), int(150*self.sc_x)], self.screen_size, "Ship1.png", ship1_gun_model, kill)#[[200, 75], [[70, 17], [70, 133]]])
+        ship2=([100, 10], 3, 80000, 200, [int(104*self.sc_x), int(78*self.sc_x)], self.screen_size, "Ship2.png", ship2_gun_model, shild)#[[104, 39], [[30, 5], [30, 71]]])
+        ship3=([100, 10], -2, 40000, 300, [int(64*self.sc_x), int(78*(64/104)*self.sc_x)], self.screen_size, "Ship2.png", ship2_gun_model, multi)#[[104, 39], [[30, 5], [30, 71]]])
         #stelth=sprites.player([100, 10], 1, 10000, 80, [50, 20], [screen_x, screen_y], "Ship1.png", [])
         #mati=sprites.player([100, 10], 5, 100000, 800, [500,400], [screen_x, screen_y], "Ship1.png", [])
 
@@ -209,11 +627,11 @@ class Menu:
 
     def define_guns(self):
         guns={
-            "Basic gun":(50, 10, [screen_x, int(10*sc_y)], 200, 400),
+            "Basic gun":(50, 10, [screen_x, int(10*self.sc_x)], 200, 400),
             "Cleaner":(50, 10000, [screen_x, 2*screen_y], 0, 0),
-            "Front recoil":(200, 5, [screen_x, int(4*sc_y)], 100, -50),
-            "Op gun":(200, 20, [screen_x, int(20*sc_y)], 100, -50),
-            "Rand gun":(5, 40, [screen_x, int(150*sc_y)], 300, 4000, "rand"),
+            "Front recoil":(200, 5, [screen_x, int(4*self.sc_x)], 100, -50),
+            "Op gun":(200, 20, [screen_x, int(20*self.sc_x)], 100, -50),
+            "Rand gun":(5, 40, [screen_x, int(150*self.sc_x)], 300, 4000, "rand"),
             "No gun":(0, 0, [screen_x, 0], 0, 0)
         }
 
@@ -221,7 +639,7 @@ class Menu:
 
 
     def define_enemies(self):
-        de=lambda x: [int(x*sc_x) for i in range(2)]
+        de=lambda x: [int(x*self.sc_x) for i in range(2)]
         enemies={
             "Meteor":(80, 3, de(100), "Meteor.png", self.screen_size[0], self.screen_size[1]),
             "Meteor2":(150, 1, de(150), "Meteor.png", self.screen_size[0], self.screen_size[1]),
@@ -257,14 +675,15 @@ class Menu:
 
     ###
 
-    def get_input(self, game, display):
+    def get_input(self, game, display, let=False):
         running=True
 
         textinput=pygame_textinput.TextInput(
             text_color=(0,255,0),
             cursor_color=(0,255,0),
             font_family='freesansbold.ttf',
-            font_size=int(32*sc_x)
+            font_size=int(32*self.sc_x),
+            letters_al=let
             )
 
         while running:
@@ -280,7 +699,7 @@ class Menu:
 
             if textinput.update(events):
                 running=False
-                self.check_game(game, textinput.input_string)
+                game(textinput.input_string)
 
             text, cursor_vis, cursor_pos=textinput.return_cursor_stuff()
             if cursor_vis:
@@ -459,7 +878,7 @@ class Menu:
         else:
             gun_selected=self.gun_selected
 
-        ship_s=deepcopy(self.ships[ship_selected])
+        ship_s=dp(self.ships[ship_selected])
         player=sprites.player(ship_s)
 
         player.load_gun(self.guns[gun_selected])
@@ -474,7 +893,7 @@ class Menu:
     def infinite_runner_init(self, player, seed=None):
         if not(seed.isdigit()):
             seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 1, self.enemies, seed)
+        play=Game(self._screen, player, 1, self.enemies, seed, self.sc_x, dis=True)
 
         self.game(play)
 
@@ -492,8 +911,8 @@ class Menu:
                 self.invalid_level()
         else:
             self.invalid_level()
-        level=deepcopy(self.levels[level])
-        play=Level(self._screen, player, level["hardness"], level["enemies"], level["seed"], aim=level["aim"])
+        level=dp(self.levels[level])
+        play=Level(self._screen, player, level["hardness"], level["enemies"], level["seed"], aim=level["aim"], sc_x=self.sc_x, dis=True)
 
         self.game(play)
 
@@ -661,15 +1080,22 @@ class Game:
             self.end_game()
 
 
-    def __init__(self, screen, player, hardness, enemies, seed):
+    def __init__(self, screen, player, hardness, enemies, seed, sc_x=1, ost=[0, 0], sc_size=None, dis=False):
+        self.sc_x=sc_x
+        self.ost=ost
+        self.dis=dis
+        if sc_size==None:
+            self.screen_x, self.screen_y=screen_x, screen_y
+        else:
+            self.screen_x, self.screen_y=sc_size
+
         self.seed=seed
         random.seed(int(self.seed))
 
         img="star1.png"
         img="test1.png"
         #img="star2.png"
-        self.img=pygame.image.load("Models/Back/"+img).convert_alpha()
-        self.bc=[1, 10, [int(10*sc_x), int(70*sc_x)], img, screen_x, screen_y]
+        self.img_name=img
 
         self.all_bc=[]
 
@@ -678,10 +1104,7 @@ class Game:
             num=str(random.randint(0, 9))
             self.code+=num
 
-        self._screen=screen
         self.player=player
-
-        self._font=pygame.font.Font('freesansbold.ttf', int(32*sc_x)) #the normal font used to display stuff
 
         self._enemies=[]
         self._possible_enemies=enemies
@@ -695,9 +1118,22 @@ class Game:
 
 
         self.specials={
-            "kill switch": [lambda: self.kill_switch(), 1500],
-            "shild": [lambda: self.player.add_shild(), 3000],
-            "multi": [lambda: self.player.add_multi(), 2500]
+            "kill switch": [1,1], #[lambda: self.kill_switch(), 1500],
+            "shild": [1,1], #[lambda: self.player.add_shild(), 3000],
+            "multi": [1,1] #[lambda: self.player.add_multi(), 2500]
+        }
+
+        self.closest={
+            "for0":[-1,-1],
+            "bk0":[-1,-1],
+            "fo1r":[-1,-1],
+            "bk1":[-1,-1],
+            "for2":[-1,-1],
+            "bk2":[-1,-1],
+            "for3":[-1,-1],
+            "bk3":[-1,-1]
+#            "up":-1,
+#            "bot":-1
         }
 
         self.special_counter=1
@@ -712,16 +1148,35 @@ class Game:
         self.pos_score_change=0
         self.distanse=0
 
+        if self.dis:
+            self.init_dis(screen)
+
+
+    def init_dis(self, screen):
+        print("pygame surface")
+        self._screen=screen
+        self.player.add_pygame()
+        for index, enemies in enumerate(self._enemies):
+            for index2, enemy in enumerate(enemies):
+                enemy.add_pygame()
+
+        self.img=pygame.image.load("Models/Back/"+self.img_name).convert_alpha()
+        self.bc=[1, 10, [int(10*self.sc_x), int(70*self.sc_x)], self.img_name, screen_x, screen_y]
+
+        self._font=pygame.font.Font('freesansbold.ttf', int(32*self.sc_x)) #the normal font used to display stuff
+
 
     def update_acceleration(self, dir):
         self.player.horixontal_thrust(dir[0])
         self.player.vertical_thrust(dir[1])
 
 
-    def frame(self, dir, fire, s_fire, special, fps):
+    def frame(self, dir, fire, s_fire, special, fps, dis=True):
+        self.dis=dis
+
         self.update_acceleration(dir)
         self.player.update_velocity()
-        over=self.player.move(sc_x, sc_y)
+        over=self.player.move(self.sc_x, self.sc_x)
         self.multiplier=round(self.multiplier+over, 5)
 
         self.spawn_enemis()
@@ -742,16 +1197,18 @@ class Game:
         fire_check=self.check_fire(fire, "F")
         s_fire_check=self.check_fire(s_fire, "S")
 
-        self.draw_background(fps)
-        self.add_stars(over=over)
-        self.draw_player()
+        if self.dis:
+            self.draw_background(fps)
+            self.add_stars(over=over)
+            self.draw_player()
 
         self.iterate_enemies(fire_check, s_fire_check, over)
 
-        if fire_check:
-            self.draw_fire("F")
-        if s_fire_check:
-            self.draw_fire("S")
+        if self.dis:
+            if fire_check:
+                self.draw_fire("F")
+            if s_fire_check:
+                self.draw_fire("S")
 
         self.check_overspeed()
 
@@ -771,7 +1228,13 @@ class Game:
         score+=(0.5*screen_y-abs(pos[1]-0.5*screen_y))
         self.pos_score_change=[int(score), round(((score/1000)**1.5)*0.5, 5)]
         self.score_change=(round(score/1000, 2)**1.5)*0.5
+        if self.score_change==0:
+            self.score_change-=0.1
         self.score_change*=self.multiplier
+        if self.multiplier<0:
+            self.score_change=abs(self.score_change)*-1*abs(self.multiplier-1)
+        if self.score_change==0:
+            self.score_change-=1
         self.score+=self.score_change
         self.player.gain_score()
 
@@ -779,7 +1242,7 @@ class Game:
     def spawn_enemis(self):
         enemy_type=0
         for enemy, value in self._enemy_probability.items():
-            value=(100-value+self.hardness)/len(list(self._enemy_probability.keys()))
+            value=(100-value+(self.hardness*self.multiplier**2))/len(list(self._enemy_probability.keys()))
             number=random.random()*100
             if number<value:
                 self.spawn_enemy(enemy, enemy_type)
@@ -790,13 +1253,15 @@ class Game:
 
 
     def spawn_enemy(self, enemy, enemy_type):
-        stats=deepcopy(self._possible_enemies[enemy])
+        stats=dp(self._possible_enemies[enemy])
         lis=[sprites.enemy]*10+[sprites.enemyH]
         en=random.choice(lis)
         stats=list(stats)
         stats[1]+=self.multiplier-1
         box1=en(stats)
         if self.check_spawn_place(box1):
+            if self.dis:
+                box1.add_pygame()
             self._enemies[enemy_type].append(box1)
         else:
             pass
@@ -880,11 +1345,11 @@ class Game:
             return None
 
         for pos, bc in enumerate(self.all_bc):
-            bc.change_speed(over)
-            bc.move(sc_x)
+            bc.change_speed(self.multiplier)
+            bc.move(self.sc_x)
             if bc.check_map():
                 rem.append(pos)
-            self.draw_enemy(None, bc)
+            self.draw_enemy(bc.return_box(), bc)
         for i in rem[-1:0:-1]:
             self.all_bc.pop(i)
 
@@ -916,6 +1381,7 @@ class Game:
         self.show_slider(mx, val, pos, hight, width)
         pos=up_pos(pos, 1, width)
 
+        return None
         c, vals=self.player.return_special()
         for i in range(c):
             j=2*i
@@ -937,8 +1403,11 @@ class Game:
 
         self.add_controls()
 
-        health=self.multiplier
-        self.get_text(str("multi "+str(health)), [0, 50])
+        multi=self.multiplier
+        self.get_text(str("Multi: "+str(multi)), [0, 50])
+        self.get_text(str("Score: "+str(round(self.score, 2))), [0, 100])
+        self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [0, 150])
+        self.get_text(str("Score change: "+str(round(self.score_change, 3))), [0, 200])
 
         return None
 
@@ -954,7 +1423,7 @@ class Game:
         return 2
 
 
-    def writing(self):
+    def writing(self, fps):
         ac=[
             self.player.vertical_ac,
             self.player.horizontal_ac
@@ -968,12 +1437,6 @@ class Game:
             ]
         self.get_text(str("vertical velocity: "+str(round(vel[0], 5)*-1)), [600, 0])
         self.get_text(str("horizontal velocity: "+str(round(vel[1], 5))), [600, 50])
-
-        self.get_text(str("ammo: "+str(amo)), [1100, 0])
-        self.get_text(str("reload: "+str(reload1)), [1100, 50])
-
-        self.get_text(str("ammo: "+str(amo2)), [1100, 100])
-        self.get_text(str("reload: "+str(reload2)), [1100, 150])
 
         health=self.player.life
         self.get_text(str("health: "+str(health)), [0, screen_y-50])
@@ -1019,10 +1482,12 @@ class Game:
 
     def get_text(self, text, pos, colour=[255,255,255]):
         text=self._font.render(text, False, colour)
-        self._screen.blit(text, pos)
+        if self.dis:
+            self._screen.blit(text, pos)
 
 
     def draw_player(self):
+        box=self.player.return_box()
         ship=self.player.return_img()
         #pygame.draw.rect(self._screen, [255,255,255], box)
         #pygame.draw.rect(self._screen, [255,255,255], box2)
@@ -1039,7 +1504,7 @@ class Game:
 
 
     def draw_enemy(self, box, enemy):
-        #pygame.draw.rect(self._screen, [255,255,255], box)
+        #pygame.draw.rect(self._screen, [255,255,0], box)
         try:
             self._screen.blit(enemy.img, enemy.cords)
         except AttributeError:
@@ -1053,21 +1518,70 @@ class Game:
     def iterate_enemies(self, fire_check, s_fire_check, over):
         player_box=self.player.return_box()
         player=self.player.return_img()
-        player=pygame.mask.from_surface(player)
+        if self.dis:
+            player=pygame.mask.from_surface(player)
         player_cords=self.player.return_cords()
+
+        self.closest={
+            "for0":[-1,-1],
+            "bk0":[-1,-1],
+            "for1":[-1,-1],
+            "bk1":[-1,-1],
+            "for2":[-1,-1],
+            "bk2":[-1,-1],
+            "for3":[-1,-1],
+            "bk3":[-1,-1]
+#            "for":{},
+#            "bk":{},
+#            "up":-1,
+#            "bot":-1
+        }
 
         laser_box=self.player.return_gun_box()
         s_laser_box=self.player.return_S_gun_box()
         for index, enemies in enumerate(self._enemies):
             for index2, enemy in enumerate(enemies):
-                enemy.change_speed(over)
-                enemy.move(sc_x)
+                enemy.change_speed(self.multiplier)
+                enemy.move(self.sc_x)
 
                 alive=True
                 box=enemy.return_box()
 
-                self.draw_enemy(box, enemy)
+                if self.dis:
+                    self.draw_enemy(box, enemy)
                 self.check_colision(player, player_cords, index, index2, enemy, box, player_box)
+
+                x_dif=player_cords[0]-enemy.cords[0]
+                y_dif=player_cords[1]-enemy.cords[1]
+
+                if x_dif>0:
+                    key="for"
+                else:
+                    key="bk"
+
+                for i in range(4):
+                    u_key=str(key+str(i))
+                    if self.closest[u_key][0]==-1:
+                        self.closest[u_key]=[x_dif, y_dif]
+                        break
+                for i in range(4):
+                    u_key=str(key+str(i))
+                    if abs(self.closest[u_key][0])>abs(x_dif):
+                        self.closest[u_key]=[x_dif, y_dif]
+                        break
+
+                #if self.closest[key]==-1 or abs(self.closest[key])>abs(x_dif):
+                #    self.closest[key]=abs(x_dif)
+
+                '''
+                if y_dif>0:
+                    key="up"
+                else:
+                    key="bot"
+                if self.closest[key]==-1 or abs(self.closest[key])>abs(y_dif):
+                    self.closest[key]=abs(y_dif)
+                '''
+
                 if fire_check:
                     damage=self.player.return_damage()
                     alive=self.check_colisions_laser(laser_box[0], index, index2, enemy, box, damage)
@@ -1090,9 +1604,12 @@ class Game:
 
     def check_colision(self, player, player_cords, index, index2, enemy, box, player_box):
         if box.colliderect(player_box):
-            pass
+            if not(self.dis):
+                self.loose_life(index, index2)
+                return None
         else:
             return None
+
         enemy_cords=enemy.return_cords()
         ofset=(int(enemy_cords[0]-player_cords[0]), int(enemy_cords[1]-player_cords[1]))
 
@@ -1100,12 +1617,16 @@ class Game:
         enemy_mask=pygame.mask.from_surface(enemy_mask)
 
         if player.overlap(enemy_mask, ofset)!=None:
-            alive=self.player.loose_life()
-            if alive:
-                self._enemies[index].pop(index2)
-                pass
-            else:
-                self.end_game()
+            self.loose_life(index, index2)
+
+
+    def loose_life(self, index, index2):
+        alive=self.player.loose_life()
+        if alive:
+            self._enemies[index].pop(index2)
+            pass
+        else:
+            self.end_game()
 
 
     def check_colisions_laser(self, laser_box, index, index2, enemy, box, damage):
@@ -1134,7 +1655,7 @@ class Game:
         rec=pygame.Rect([0, 0], [screen_x, screen_y])
         pygame.draw.rect(self._screen, [0,0,0], rec)
 
-        base=int(50*sc_x)
+        base=int(50*self.sc_x)
 
         self.get_text(mes, [screen_x/2-base*2, screen_y/2-base*3])
 
@@ -1147,8 +1668,8 @@ class Game:
 
 class Level(Game):
 
-    def __init__(self, screen, player, hardness, enemies, seed, aim):
-        super().__init__(screen, player, hardness, enemies, seed)
+    def __init__(self, screen, player, hardness, enemies, seed, aim, sc_x=1):
+        super().__init__(screen, player, hardness, enemies, seed, sc_x=sc_x)
 
         self.aim=aim
 
@@ -1263,7 +1784,7 @@ class Aim:
 
 
 
-def main(test=False):
+def main(test=False, ev=False):
     pygame.init()
     screen=pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     x, y=pygame.display.Info().current_w, pygame.display.Info().current_h
@@ -1287,15 +1808,15 @@ def main(test=False):
     print(screen_x, screen_y)
 
 
-    global sc_x, sc_y
     ref_x=1366
-    ref_y=768
     sc_x=screen_x/ref_x
-    sc_y=screen_y/ref_y
 
-    current_game=Menu(screen, [screen_x, screen_y])
+    current_game=Menu(screen, [screen_x, screen_y], sc_x)
+    if not(ev):
+        current_game.main_menu()
     #current_game.pick_ship()
     return current_game
+
 
 if __name__=="__main__":
     main()
