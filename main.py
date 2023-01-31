@@ -1,3 +1,8 @@
+global runs, telp, hor
+runs=80
+telp=True
+hor=False
+
 import sys
 import os
 
@@ -13,6 +18,10 @@ import neat
 import multiprocessing as mp
 from multiprocessing import Pool
 
+import math
+from matplotlib import pyplot as plt
+import time
+import numpy as np
 import random
 from random import randint, uniform, choice
 
@@ -21,6 +30,111 @@ import inspect
 import pygame_textinput
 import sprites
 import visualise as vis
+
+def evolv_Smain2(ge, games, nets, props, rng):
+    playing=True
+    or_rng=dp(rng)
+
+    while playing:
+        rem=[]
+        for i in rng:
+            ret=True
+            try:
+                game=games[i]
+            except IndexError:
+                rem.append(i)
+                continue
+
+            ins=props[i]
+
+            plr=game.player
+
+            inputs_2=tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+            pot_vals=game.vision
+            inputs_3=tuple(pot_vals.values())
+
+            if hor:
+                inputs_4=tuple([pot_vals[i] for i in [0, 45, 90, 135, 180]])
+                inputs_5=[pot_vals[i] for i in [0, 315, 270, 225, 180]]
+                inputs_5[0]=0
+                inputs_5[4]=0
+                inputs_5=tuple(inputs_5)
+
+            else:
+                inputs_4=tuple([pot_vals[i] for i in [11.25, 45, 90, 135, 168.75]])
+                inputs_5=tuple([pot_vals[i] for i in [348.75, 315, 270, 225, 191.25]])
+
+            if telp:
+                spec_inputs=(
+                    plr.cords[0]-game.target[0],
+                    plr.cords[1]-game.target[1]
+                )+inputs_3
+
+                if True:
+                    outs=nets[i].activate(inputs_4)
+                    outs2=nets[i].activate(inputs_5)
+
+                    x=outs[0] if abs(outs[0])>abs(outs2[0]) else outs2[0]
+                    y=outs[1] if abs(outs[1])>abs(outs2[1]) else -outs2[1]
+                else:
+                    outs=nets[i].activate(inputs_3)
+                    #outs=nets[i].activate(spec_inputs)
+                    x, y=[round(i) for i in outs[0:2]]
+
+                dirn=[0, 0]
+
+                ret=game.spec_move(x, y)
+            else:
+                inputs_1=(
+                    plr.cords[0]-game.target[0],
+                    plr.cords[1]-game.target[1],
+                    plr.vertical,
+                    plr.horizontal
+                )
+                inputs=inputs_1+inputs_2
+
+                outs=nets[i].activate(inputs_1)
+                dirn=[round(i) for i in outs[0:2]]
+
+            pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=None, dis=False)
+
+            if not(pl) or not(ret):
+                rem.append(i)
+
+            if telp and False:
+                ge[i].fitness=games[i].distanse
+            else:
+                vals=list(pot_vals.values())
+                #ge[i].fitness+=sum([(pos**2)*i/5 for pos, i in enumerate(vals[::-1])])/16000
+                #ge[i].fitness+=sum([(pos**2.5)*i/11.7 for pos, i in enumerate(vals[::-1])])/16000
+                #ge[i].fitness+=sum([(pos**3)*i/28 for pos, i in enumerate(vals[::-1])])/16000
+                #ge[i].fitness+=sum([(i**(pos/6)) for pos, i in enumerate(vals[::-1])])/2200
+                #ge[i].fitness=games[i].score
+
+                #ge[i].fitness+=sum([(pos**2.5)*i/11.7 for pos, i in enumerate(vals[-3::-1])])/16000
+                mins=[]
+                for key in [11.25, 45, 90, 135, 168.75]:
+                    mins.append(round(game.vision[key]+game.vision[key+180]-abs(game.vision[key]-game.vision [key+180])))
+                ge[i].fitness+=(sum(mins)/10000)
+
+            if ge[i].fitness>50000:
+                print(games[i].seed)
+                rem.append(i)
+
+            if pl and games[i].multiplier<0:
+                rem.append(i)
+                ge[i].fitness=-1000
+
+        for j in rem:
+            rng.pop(rng.index(j))
+
+        if rng==[]:
+            playing=False
+            return [ge, or_rng]
+
+    print("out of while, how")
+    return None
+
 
 def evolv_Smain(ge, games, nets, props, rng, fpsclock=None, dis=False):
     rem=[]
@@ -32,30 +146,55 @@ def evolv_Smain(ge, games, nets, props, rng, fpsclock=None, dis=False):
 
     while playing:
         rem=[]
+        sk=0
         for i in range(start, start+ln):
+            ret=True
             try:
                 game=games[i]
             except IndexError:
+                sk+=1
                 continue
             ins=props[i]
 
             plr=game.player
-            inputs_1=(
-                plr.cords[0]-screen_x/2,
-                plr.cords[1]-screen_y/2,
-                plr.vertical,
-                plr.horizontal
-            )
-            inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
-            outs=nets[i].activate(inputs)
-            dirn=[round(i) for i in outs[0:2]]
+
+            inputs_2=tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+            inputs_3=tuple(game.vision.values())
+
+            if telp:
+                spec_inputs=(
+                    plr.cords[0]-game.target[0],
+                    plr.cords[1]-game.target[1]
+                )+inputs_3
+
+                outs=nets[i].activate(inputs_3)
+                #outs=nets[i].activate(spec_inputs)
+                dirn=[0, 0]
+                x, y=[round(i) for i in outs[0:2]]
+
+                ret=plr.spec_move(x, y)
+            else:
+                inputs_1=(
+                    plr.cords[0] -game.target[0],
+                    plr.cords[1] -game.target[1],
+                    plr.vertical,
+                    plr.horizontal
+                )
+                inputs=inputs_1+inputs_2
+
+                outs=nets[i].activate(inputs_1)
+                dirn=[round(i) for i in outs[0:2]]
 
             pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=fpsclock, dis=dis)
 
-            if not(pl):
+            if not(pl) or not(ret):
                 rem.append(i)
 
-            ge[trans[i]].fitness=game.score
+            if telp:
+                ge[trans[i]].fitness=game.distanse
+            else:
+                ge[trans[i]].fitness=game.score
+
             if pl and game.multiplier<0:
                 rem.append(i)
                 ge[trans[i]].fitness=-1000
@@ -73,9 +212,10 @@ def evolv_Smain(ge, games, nets, props, rng, fpsclock=None, dis=False):
             games.pop(j)
             props.pop(j)
 
-        if ln==0:
+        if ln==0 or sk==ln:
             playing=False
             return [ge, or_rng]
+
 
 
 class Menu:
@@ -194,6 +334,7 @@ class Menu:
         buttons=self.buttons(list(options.keys()))
 
         while running:
+            pygame.display.flip()
             for event in pygame.event.get():
                 if event.type==pygame.MOUSEBUTTONDOWN:
                     pos=pygame.mouse.get_pos()
@@ -246,7 +387,7 @@ class Menu:
             self.get_text(text, pos, [255,255,255])
 
 
-    def evolv_display(self, textinput, cursor_pos, mouse_pos):
+    def evolv_display(self, textinput, cursor_pos, mouse_pos, mos):
         text, cursor_vis, cursor=textinput.return_info_needed()
         text_width, text_height=self._font.size(text)
 
@@ -269,17 +410,21 @@ class Menu:
         path=str(os.getcwd()+"/evolv_info")
         dir_list=os.listdir(path)
         for name in dir_list:
-            folders.append(name)
+            if text in name and text!=name:
+                folders.append(name)
         #pos=(
         #    self.screen_size[0]/2,
         #    self.screen_size[1]/4+text_height*2
         #)
         #self.get_text(folders, pos, [0,255,0], True)
 
-        for i in range(0, 10):
+        y_start=self.screen_size[1]/2-text_height*len(folders)/2
+        y_calc=lambda i: y_start+i*text_height
+
+        for i in range(len(folders)):
             pos=(
                 10,
-                self.screen_size[1]/4+i*text_height
+                y_calc(i)
             )
             try:
                 mes=folders[i]
@@ -287,9 +432,8 @@ class Menu:
                 break
             size=self._font.size(mes)
             rec=pygame.Rect(pos, size)
-            if rec.collidepoint(mouse_pos):
-                if text=="":
-                    textinput.input_string=str(mes)
+            if rec.collidepoint(mouse_pos) and mos:
+                textinput.input_string=str(mes)
             self.get_text(mes, pos, [0,255,0])
 
         pos=(
@@ -306,7 +450,7 @@ class Menu:
             self._screen.blit(cursor, pos)
 
 
-    def prp_save(self, path, name):
+    def prp_save(self, path, name, config):
         if name in os.listdir(path):
             dir_list=os.listdir(path+"/"+name)
             if "winner.nnet" in dir_list:
@@ -317,16 +461,17 @@ class Menu:
                     if "ck_neat" in fil:
                         num=fil.split("-")[1]
                         lis.append(int(num))
-                print(lis)
-                print(dir_list)
-                filename="/ck_neat-"+str(max(lis))
-                print(filename)
-                p=neat.Checkpointer.restore_checkpoint(path+"/"+name+filename)
+                try:
+                    filename="/ck_neat-"+str(max(lis))
+                    print(filename)
+                    p=neat.Checkpointer.restore_checkpoint(path+"/"+name+filename)
+                except ValueError:
+                    p=neat.Population(config)
         else:
             os.mkdir("evolv_info/"+name)
             p=neat.Population(config)
 
-        p.add_reporter(neat.Checkpointer(generation_interval=10,filename_prefix=str("evolv_info/"+name+"/ck_neat-")))
+        p.add_reporter(neat.Checkpointer(generation_interval=5,filename_prefix=str("evolv_info/"+name+"/ck_neat-")))
         return p
 
 
@@ -342,13 +487,13 @@ class Menu:
             p=neat.Population(config)
         else:
             path=local_dir+"/evolv_info"
-            p=self.prp_save(path, name)
+            p=self.prp_save(path, name, config)
 
         p.add_reporter(neat.StdOutReporter(True))
         stats=neat.StatisticsReporter()
         p.add_reporter(stats)
 
-        winner=p.run(self.evolv_main2,1)
+        winner=p.run(self.evolv_main2,runs)
         win=p.best_genome
 
         pickle.dump(win, open("evolv_info/"+name+"/ev_winner.nnet", 'wb'))
@@ -361,7 +506,10 @@ class Menu:
         vis.plot_stats(stats, view=False, filename="stats.svg", pre=str("evolv_info/"+name+"/"))
         vis.draw_net(config, winner, view=False, filename="vis", pre=str("evolv_info/"+name+"/"))
 
-        self.main_menu()
+        mes=winner.fitness
+
+        des=lambda: self.run_winner(name)
+        self.end_screen(Game(self._screen, "player", "hardness", {}, 1, dis=True), mes)
 
 
     def evolv_main2(self, genomes, config):
@@ -375,7 +523,7 @@ class Menu:
             "s_fire":False,
             "spc":False
         }
-        hard=1
+        hard=0.1
 
         for _, g in genomes:
             net=neat.nn.FeedForwardNetwork.create(g, config)
@@ -386,7 +534,7 @@ class Menu:
 
             plr=self.defult_plr()
             seed=random.randrange(sys.maxsize)
-            play=Game(None, plr, hard, self.enemies, seed, self.sc_x)
+            play=Game(None, plr, hard, self.enemies, seed, self.sc_x, targeting=False)
             games.append(play)
 
             props.append(dp(pr_def))
@@ -396,18 +544,26 @@ class Menu:
         workers=mp.cpu_count()
         rem=[]
 
-        pros=len(games)//workers
+        pros=(len(games)//workers)
         print(pros)
         print(workers)
         print(len(nets))
         with Pool(processes=workers) as pool:
+            print("Pool started")
             mp_res=[
                 pool.apply_async(
-                    evolv_Smain,
+                    evolv_Smain2,
                     (dp(ge), dp(games), dp(nets), dp(props), [j+i for j in range(pros)],)
                 ) for i in range(0, workers*pros, pros)
             ]
-            rems=[res.get() for res in mp_res]
+            print("Pool generated")
+            rems=[res.get(timeout=60) for res in mp_res]
+            print("Results in")
+            pool.close()
+            print("Close")
+            pool.join()
+            print("Joined")
+        print("Pool closed")
 
         #for event in pygame.event.get():
         #    if event.type==pygame.QUIT:
@@ -418,9 +574,8 @@ class Menu:
             for i in rng:
                 try:
                     ge[i].fitness=ge_out[i].fitness
-                except KeyError:
-                    print(i)
-                    print(len(ge))
+                except IndexError or KeyError:
+                    pass
 
         #self.get_text(str(len(self.games)), [0,0])
         #pygame.display.flip()
@@ -524,11 +679,9 @@ class Menu:
                     games[0].init_dis(self._screen)
 
 
-    def sing_evl(self):
-        pass
-
-
     def run_winner(self, name):
+        hard=0.1
+
         local_dir=os.path.dirname(__file__)
         config_path=os.path.join(local_dir, 'config-feedforward.txt')
 
@@ -536,15 +689,7 @@ class Menu:
             neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path
         )
         plr=self.defult_plr()
-        pr_def={
-            "dirn":[0, 0],
-            "fire":False,
-            "s_fire":False,
-            "spc":False
-        }
-        hard=1
-        seed=random.randrange(sys.maxsize)
-
+        path="evolv_info/"+name+"/ev_winner.nnet"
         path="evolv_info/"+name+"/winner.nnet"
         try:
             fil=open(path, "rb")
@@ -555,31 +700,131 @@ class Menu:
         g=pickle.load(fil)
         net=neat.nn.FeedForwardNetwork.create(g, config)
 
-        game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=True)
+        random.seed(42069)
+        dis=False
+        test_amt=200
+        test_amt=0
+        tests=[random.randrange(sys.maxsize) for i in range(test_amt)]
+        avg_sc=[]
+        avg_dis=[]
+        print("Now testing: "+name+" - "+str(dis))
+
+        start=time.time()
+        for pos, seed in enumerate(tests):
+            if int(test_amt/5)==0 or pos%int(test_amt/5)==int(test_amt/5)-1:
+                print("Test num: "+str(pos)+" took "+str(time.time()-start))
+                start=time.time()
+            game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=dis, draw=False, targeting=True)
+            scr, dis=self.run_ai(game, net)
+            avg_sc.append(scr)
+            avg_dis.append(dis)
+
+        if test_amt!=0:
+            print("Average score: "+str(int(sum(avg_sc)/len(tests))))
+            print("Minimum/Maximum score: "+str(int(min(avg_sc)))+"/"+str(int(max(avg_sc))))
+            print("Average distance: "+str(int(sum(avg_dis)/len(tests))))
+            print("Minimum/Maximum distance: "+str(int(min(avg_dis)))+"/"+str(int(max(avg_dis))))
+            print("Best seed: "+str(tests[avg_dis.index(max(avg_dis))]))
+
+            new_data=[i//1000 for i in avg_dis]
+            print(new_data)
+            plt.hist(new_data)
+            plt.show()
+            path="evolv_info/"+name+"/testdata"+str(test_amt)
+            with open(path, "wb") as file:
+                pickle.dump(avg_dis, file)
+
+        random.seed(time.time())
+        seed=random.randrange(sys.maxsize)
+        #seed=7018639715332314491
+        seed=4855103173990346366
+        seed=2594094090975880053
+        #seed=246612780681178354
+        print(seed)
+        game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=True, targeting=True)
+        self.run_ai(game, net)
+
+
+    def run_ai(self, game, net):
+        plr=game.player
+        ins={
+            "dirn":[0, 0],
+            "fire":False,
+            "s_fire":False,
+            "spc":False
+        }
 
         playing=True
         fpsclock=pygame.time.Clock()
         FPS=120
 
         while playing:
+            ret=True
             for event in pygame.event.get():
                 if event.type==pygame.QUIT:
                     pygame.quit()
                     quit()
 
             inputs_1=(
-                plr.cords[0]-screen_x/2,
-                plr.cords[1]-screen_y/2,
+                plr.cords[0]-game.target[0],
+                plr.cords[1]-game.target[1],
                 plr.vertical,
                 plr.horizontal
             )
-            inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
-            outs=net.activate(inputs)
-            dirn=[round(i) for i in outs[0:2]]
-            pl, mes=game.frame(dir=dirn, fire=False, s_fire=False, special=False, fps=fpsclock)
+
+            inputs_2=tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+            inputs_3=tuple(game.vision.values())
+
+            pot_vals=game.vision
+
+            if hor:
+                inputs_4=tuple([pot_vals[i] for i in [0, 45, 90, 135, 180]])
+                inputs_5=[pot_vals[i] for i in [0, 315, 270, 225, 180]]
+                inputs_5[0]=0
+                inputs_5[4]=0
+                inputs_5=tuple(inputs_5)
+            else:
+                inputs_4=tuple([pot_vals[i] for i in [11.25, 45, 90, 135, 168.75]])
+                inputs_5=tuple([pot_vals[i] for i in [348.75, 315, 270, 225, 191.25]])
+
+            inputs=inputs_1+inputs_2
+
+            spec_inputs=(
+                plr.cords[0]-game.target[0],
+                plr.cords[1]-game.target[1]
+            )+inputs_3
+
+            if True:
+                outs=net.activate(inputs_4)
+                outs2=net.activate(inputs_5)
+
+                x=outs[0] if abs(outs[0])>abs(outs2[0]) else outs2[0]
+                y=outs[1] if abs(outs[1])>abs(outs2[1]) else -outs2[1]
+            else:
+                #outs=net.activate(inputs_1)
+                outs=net.activate(inputs_3)
+                #outs=nets[i].activate(spec_inputs)
+                x, y=[round(i) for i in outs[0:2]]
+
+            dirn=[0, 0]
+
+            ret=game.spec_move(x, y)
+            pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=fpsclock, dis=game.dis)
+
+            if game.draw:
+                game.get_text(str([round(i, 2) for i in outs]), [600, 300])
+                game.get_text(str([round(i, 2) for i in outs2]), [600, 250])
 
             pygame.display.flip()
             fpsclock.tick(FPS)
+
+            if not(pl) or not(ret):
+                playing=False
+
+        if game.dis and game.draw:
+            self.end_screen(game, mes)
+        else:
+            return game.score, game.distanse
 
             
     def defult_plr(self):
@@ -591,6 +836,7 @@ class Menu:
 
         player.load_gun(self.guns[gun_selected])
         player.load_S_gun(self.guns["No gun"])
+        player.life=1
         return player
 
 
@@ -645,6 +891,11 @@ class Menu:
             "Meteor2":(150, 1, de(150), "Meteor.png", self.screen_size[0], self.screen_size[1]),
             "Meteor3":(300, 0.5, de(200), "Meteor.png", self.screen_size[0], self.screen_size[1])
         }
+        if not(telp):
+            return {}
+        return {
+            "Meteor3":(300, 1, de(200), "Meteor.png", self.screen_size[0], self.screen_size[1])
+        }
         return enemies
 
     ###
@@ -687,6 +938,7 @@ class Menu:
             )
 
         while running:
+            mouse=False
             self._screen.fill((0,0,0))
 
             events = pygame.event.get()
@@ -695,6 +947,8 @@ class Menu:
                     if event.key==27:
                         running=False
                         self.main_menu()
+                elif event.type==pygame.MOUSEBUTTONDOWN:
+                    mouse=True
             pos=pygame.mouse.get_pos()
 
             if textinput.update(events):
@@ -705,12 +959,12 @@ class Menu:
             if cursor_vis:
                 cursor_pos=self._font.size(text[:cursor_pos])[0]
 
-            display(textinput, cursor_pos, pos)
+            display(textinput, cursor_pos, pos, mouse)
 
             pygame.display.update()
 
 
-    def infinite_runner_display(self, textinput, cursor_pos, mouse_pos):
+    def infinite_runner_display(self, textinput, cursor_pos, mouse_pos, mos):
         text, cursor_vis, cursor=textinput.return_info_needed()
         text_width, text_height=self._font.size(text)
 
@@ -776,7 +1030,7 @@ class Menu:
             self._screen.blit(cursor, pos)
 
 
-    def level_runner_display(self, textinput, cursor_pos, pos):
+    def level_runner_display(self, textinput, cursor_pos, pos, mos):
         text, cursor_vis, cursor=textinput.return_info_needed()
         text_width, text_height=self._font.size(text)
 
@@ -892,8 +1146,10 @@ class Menu:
 
     def infinite_runner_init(self, player, seed=None):
         if not(seed.isdigit()):
+            seed=4855103173990346366
             seed=random.randrange(sys.maxsize)
-        play=Game(self._screen, player, 1, self.enemies, seed, self.sc_x, dis=True)
+        hard=0.1
+        play=Game(self._screen, player, hard, self.enemies, seed, self.sc_x, dis=True, targeting=True)
 
         self.game(play)
 
@@ -971,6 +1227,7 @@ class Menu:
                     elif event.key==107:
                         s_fire=False
             while paused:
+                pygame.display.flip()
                 direction[0]=0
                 direction[1]=0
                 fire=False
@@ -982,21 +1239,26 @@ class Menu:
             pygame.display.flip()
             fpsclock.tick(FPS)
 
-        play.end_screen(mes)
-        pygame.display.flip()
-        end=True
-
         if type(Game("screen", "player", "hardness", {}, 1))==type(play):
             self.save_result(play.score, play.seed)
         elif type(Level("screen", "player", "hardness", {}, 1, "aim"))==type(play):
             self.save_level_result(play.score, play.seed)
 
+        self.end_screen(play, mes)
+
+
+    def end_screen(self, play, mes, des=None):
+        end=True
+        play.end_screen(mes)
         while end:
+            pygame.display.flip()
             for event in pygame.event.get():
                 if event.type==pygame.KEYDOWN:
                     if event.key==27:
                         end=False
                         self.main_menu()
+                    elif event.key==32 and des:
+                        des()
 
     ###
 
@@ -1080,14 +1342,33 @@ class Game:
             self.end_game()
 
 
-    def __init__(self, screen, player, hardness, enemies, seed, sc_x=1, ost=[0, 0], sc_size=None, dis=False):
+    def __init__(self, screen, player, hardness, enemies, seed, sc_x=1, ost=[0, 0], sc_size=None, dis=False, targeting=False, draw=True):
+        self.hor=12
         self.sc_x=sc_x
         self.ost=ost
         self.dis=dis
+        self.draw=draw
         if sc_size==None:
             self.screen_x, self.screen_y=screen_x, screen_y
         else:
             self.screen_x, self.screen_y=sc_size
+
+        self.player=player
+
+        self.targeting=targeting
+        self.t_div=self.screen_x
+        self.t_div=360
+        if not(self.targeting):
+            self.target=[screen_x/2, screen_y/2]
+        else:
+            self.target_counter=0
+            self.target_counter_max=4800/self.t_div
+            self.target=[screen_x/2, screen_y/2]
+
+        try:
+            self.player.cords=dp(self.target)
+        except AttributeError:
+            pass
 
         self.seed=seed
         random.seed(int(self.seed))
@@ -1104,8 +1385,6 @@ class Game:
             num=str(random.randint(0, 9))
             self.code+=num
 
-        self.player=player
-
         self._enemies=[]
         self._possible_enemies=enemies
         #self._enemy_probability=99.8
@@ -1116,6 +1395,16 @@ class Game:
             i+=0.5
             self._enemies.append([])
 
+        try:
+            stats=dp(enemies["Meteor3"])
+            en=sprites.enemy(stats)
+            en.cords[1]=self.target[1]
+            if self.dis:
+                en.add_pygame()
+            self._enemies[list(enemies.keys()).index("Meteor3")].append(en)
+        except:
+            pass
+
 
         self.specials={
             "kill switch": [1,1], #[lambda: self.kill_switch(), 1500],
@@ -1124,17 +1413,28 @@ class Game:
         }
 
         self.closest={
-            "for0":[-1,-1],
-            "bk0":[-1,-1],
-            "fo1r":[-1,-1],
-            "bk1":[-1,-1],
-            "for2":[-1,-1],
-            "bk2":[-1,-1],
-            "for3":[-1,-1],
-            "bk3":[-1,-1]
-#            "up":-1,
-#            "bot":-1
+            "for0":[0, 0],
+            "bk0":[0, 0]
         }
+
+        self.cov=8
+        self.vision=dict(zip([int(360/self.cov)*i for i in range(self.cov)], [self.screen_x for i in range(self.cov)]))
+        if not(hor):
+            del self.vision[0]
+            del self.vision[180]
+            for i in [-1, 1]:
+                for j in [0, 180]:
+                    self.vision[self.move_hor(i, j)]=self.screen_x
+
+        self.vis_trans=dict(zip(self.vision.keys(), [1 if (i==45 or i==225) else -1 for i in self.vision.keys()]))
+        for key, val in self.vis_trans.items():
+            if key%90==0:
+                self.vis_trans[key]=0
+            elif key!=int(key) and True:
+                if key%180>90:
+                    self.vis_trans[key]=-1/self.hor
+                else:
+                    self.vis_trans[key]=1/self.hor
 
         self.special_counter=1
 
@@ -1144,6 +1444,7 @@ class Game:
 
         self.score=0
         self.multiplier=1
+        self.hard_speed=1
         self.score_change=0
         self.pos_score_change=0
         self.distanse=0
@@ -1153,9 +1454,11 @@ class Game:
 
 
     def init_dis(self, screen):
-        print("pygame surface")
         self._screen=screen
-        self.player.add_pygame()
+        try:
+            self.player.add_pygame()
+        except AttributeError:
+            pass
         for index, enemies in enumerate(self._enemies):
             for index2, enemy in enumerate(enemies):
                 enemy.add_pygame()
@@ -1172,12 +1475,27 @@ class Game:
 
 
     def frame(self, dir, fire, s_fire, special, fps, dis=True):
+        for key in self.vision.keys():
+            self.vision[key]=self.screen_x
         self.dis=dis
+
+        if self.targeting:
+            self.target_counter+=1
+            if self.target_counter==self.target_counter_max:
+                self.target_counter=0
+                new_target=[-1, -1]
+                while not(0<new_target[0]<self.screen_x and 0<new_target[1]<self.screen_y):
+                    new_target[0]=self.target[0]+randint(-int(self.screen_x/self.t_div), int(self.screen_x/self.t_div))
+                    new_target[1]=self.target[1]+randint(-int(self.screen_x/self.t_div), int(self.screen_x/self.t_div))
+
+                self.target=new_target#[randint(0, self.screen_x), randint(0, self.screen_y)]
 
         self.update_acceleration(dir)
         self.player.update_velocity()
         over=self.player.move(self.sc_x, self.sc_x)
         self.multiplier=round(self.multiplier+over, 5)
+        if self._possible_enemies=={}:
+            self.multiplier=1
 
         self.spawn_enemis()
 
@@ -1197,12 +1515,29 @@ class Game:
         fire_check=self.check_fire(fire, "F")
         s_fire_check=self.check_fire(s_fire, "S")
 
-        if self.dis:
+        if self.dis and self.draw:
             self.draw_background(fps)
-            self.add_stars(over=over)
+            #self.add_stars(over=over)
             self.draw_player()
+            if self.targeting:
+                rec=pygame.Rect([i-20 for i in self.target], [40, 40])
+                #pygame.draw.rect(self._screen, [255,255,0], rec)
 
         self.iterate_enemies(fire_check, s_fire_check, over)
+
+        self.comp_vis()
+        if  self.dis and self.draw:
+            self.draw_vis()
+            vals=list(self.vision.values())
+
+            mins=[]
+            for key in [11.25, 45, 90, 135, 168.75]:
+                mins.append(round(self.vision[key]+self.vision[key+180]-abs(self.vision[key]-self.vision [key+180])))
+            self.get_text(str(sum([(pos**2.5)*i/11.7 for pos, i in enumerate(vals[::-1])])/16000*1000-sum(mins)/10), [600, 150])
+            self.get_text(str(mins), [600, 200])
+            vals.sort()
+            self.get_text(str(sum([(pos**2.5)*i/11.7 for pos, i in enumerate(vals[::-1])])/16000*1000), [600, 100])
+
 
         if self.dis:
             if fire_check:
@@ -1218,19 +1553,29 @@ class Game:
 
 
     def update_score(self):
-        self.hardness+=0.0001
+        #self.hardness+=(0.0001/((self.hardness+0.6)**3))
+        if self.hardness>1:
+            self.hardness=1
+        elif self.hardness==1:
+            pass
+        else:
+            self.hardness+=(0.0001/(self.hardness*3))
+
+        self.hard_speed+=((0.003*self.hard_speed)/((self.hard_speed**2)*4))
 
         self.distanse+=1
 
-        score=1
         pos=self.player.return_cords()
-        score+=(0.5*screen_x-abs(pos[0]-0.5*screen_x))
-        score+=(0.5*screen_y-abs(pos[1]-0.5*screen_y))
+        score=self.score_target(pos)
         self.pos_score_change=[int(score), round(((score/1000)**1.5)*0.5, 5)]
-        self.score_change=(round(score/1000, 2)**1.5)*0.5
+
+        #self.score_change=(round(score/10, 1)**1.5)*0.5
+        self.score_change=((score/10)**1.5)*0.5
+
         if self.score_change==0:
             self.score_change-=0.1
         self.score_change*=self.multiplier
+
         if self.multiplier<0:
             self.score_change=abs(self.score_change)*-1*abs(self.multiplier-1)
         if self.score_change==0:
@@ -1239,7 +1584,43 @@ class Game:
         self.player.gain_score()
 
 
+    def score_target(self, pos):
+        score=1
+        con=2.5
+        div=50
+
+        x=int(abs(pos[0]-self.target[0])/10)*10
+        score_x=((math.log(self.screen_x, con+x/div)))
+
+        y=int(abs(pos[1]-self.target[1])/10)*10
+        score_y=(math.log(self.screen_y, con+y/div))
+
+        score+=(min([score_x, score_y])*2)
+
+        vel=[
+            self.player.vertical,
+            self.player.horizontal
+            ]
+        #score-=abs(vel[0])
+        #score-=abs(vel[1])
+
+        if score<0:
+            score=0
+
+        #score+=(self.screen_x-abs(pos[0]-self.target[0]))
+        #score+=(self.screen_y-abs(pos[1]-self.target[1]))
+
+        return score
+
+
     def spawn_enemis(self):
+        if self._possible_enemies=={}:
+            alive=self.player.count_life()
+            if alive:
+                return None
+            else:
+                self.end_game()
+
         enemy_type=0
         for enemy, value in self._enemy_probability.items():
             value=(100-value+(self.hardness*self.multiplier**2))/len(list(self._enemy_probability.keys()))
@@ -1257,7 +1638,8 @@ class Game:
         lis=[sprites.enemy]*10+[sprites.enemyH]
         en=random.choice(lis)
         stats=list(stats)
-        stats[1]+=self.multiplier-1
+        #stats[1]+=self.multiplier-1
+        stats[1]+=self.hard_speed-1
         box1=en(stats)
         if self.check_spawn_place(box1):
             if self.dis:
@@ -1311,6 +1693,12 @@ class Game:
             pass
         else:
             self.end_game()
+
+
+    def spec_move(self, x, y):
+        x*=(self.screen_x/self.t_div)
+        y*=(self.screen_x/self.t_div)
+        return self.player.spec_move(x, y)
 
 
     def start_stars(self):
@@ -1401,13 +1789,9 @@ class Game:
             #col=[0, 98, 166]
         pygame.draw.rect(self._screen, col, rec)
 
-        self.add_controls()
+        self.writing(fps)
 
-        multi=self.multiplier
-        self.get_text(str("Multi: "+str(multi)), [0, 50])
-        self.get_text(str("Score: "+str(round(self.score, 2))), [0, 100])
-        self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [0, 150])
-        self.get_text(str("Score change: "+str(round(self.score_change, 3))), [0, 200])
+        self.add_controls()
 
         return None
 
@@ -1424,6 +1808,11 @@ class Game:
 
 
     def writing(self, fps):
+        multi=self.multiplier
+        pos=self.player.return_cords()
+        x=int(abs(pos[0]-self.target[0])/10)*10
+        y=int(abs(pos[1]-self.target[1])/10)*10
+
         ac=[
             self.player.vertical_ac,
             self.player.horizontal_ac
@@ -1438,28 +1827,25 @@ class Game:
         self.get_text(str("vertical velocity: "+str(round(vel[0], 5)*-1)), [600, 0])
         self.get_text(str("horizontal velocity: "+str(round(vel[1], 5))), [600, 50])
 
-        health=self.player.life
-        self.get_text(str("health: "+str(health)), [0, screen_y-50])
+        self.get_text(str("X dis: "+str(x)), [1200, 0])
+        self.get_text(str("Y dis: "+str(y)), [1200, 50])
 
-        self.get_text(str("enemies: "+str(len(self._enemies[0])+len(self._enemies[1]))), [0, 150])
-
-        self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [0, screen_y-100])
-        self.get_text(str("Frame time: "+str(round(fps.get_time(), 4))), [0, screen_y-150])
+        self.get_text(str("FPS: "+str(round(fps.get_fps(), 4))), [400, screen_y-100])
         self.get_text(str("Raw Frame time: "+str(round(fps.get_rawtime(), 4))), [400, screen_y-150])
-
-        value=(100-self._enemy_probability["Meteor"]+self.hardness)/len(list(self._enemy_probability.keys()))
-        self.get_text(str("Probability: "+str(round(value, 4))), [400, screen_y-100])
 
         self.get_text(str("Level code: "+str(self.code)), [400, screen_y-50])
         self.get_text(str("Level seed: "+str(self.seed)), [400, screen_y-200])
 
-        self.get_text(str("Score change: "+str(round(self.score_change, 2))), [1000, screen_y-50])
         self.get_text(str("Score: "+str(round(self.score, 2))), [1000, screen_y-100])
         self.get_text(str("Kills: "+str(self.player.kills)), [1000, screen_y-150])
         self.get_text(str("Damage: "+str(self.player.damage)), [1000, screen_y-200])
         self.get_text(str("Distance: "+str(self.distanse)), [1000, screen_y-250])
         self.get_text(str("Pos Score change: "+str(self.pos_score_change)), [0, screen_y-300])
+        self.get_text(str("Hardness: "+str(self.hardness)), [0, screen_y-350])
+
         self.get_text(str("Special recharge: "+str(self.special_counter)), [1000, screen_y-300])
+        self.get_text(str("Multi: "+str(multi)), [0, 100])
+        self.get_text(str("Score change: "+str(round(self.score_change, 3))), [0, 200])
 
 
     def show_slider(self, mx, cur, pos, size, wid):
@@ -1486,12 +1872,46 @@ class Game:
             self._screen.blit(text, pos)
 
 
+    def draw_vis(self):
+        pl_cords=dp(self.player.return_cords())
+        for key, val in self.vision.items():
+            ang_norm=key%90
+            ang_dir=key//90
+            if ang_dir%2==0:
+                x, y=self.angs(ang_norm)
+                if ang_dir==2:
+                    x=-x
+                    y=-y
+            else:
+                y, x=self.angs(ang_norm)
+                if ang_dir==1:
+                    x=-x
+                else:
+                    y=-y
+
+            end_cords=[]
+            end_cords.append(pl_cords[0]+int(val*x))
+            end_cords.append(pl_cords[1]+int(val*y))
+
+            pygame.draw.line(self._screen, [255,0,0], pl_cords, end_cords)
+            pygame.draw.circle(self._screen, [255,0,0], end_cords, 10)
+
+            end_cords=[]
+            end_cords.append(pl_cords[0]+int(150*x))
+            end_cords.append(pl_cords[1]+int(150*y))
+            #self.get_text(str(key)+" "+str(x)+" "+str(y), end_cords)
+
+
     def draw_player(self):
         box=self.player.return_box()
         ship=self.player.return_img()
         #pygame.draw.rect(self._screen, [255,255,255], box)
         #pygame.draw.rect(self._screen, [255,255,255], box2)
-        self._screen.blit(ship, self.player.return_cords())
+        self._screen.blit(ship, self.player.return_img_cords())
+        if self.target:
+            rec=pygame.Rect([i-10 for i in self.player.return_cords()], [20, 20])
+            #pygame.draw.rect(self._screen, [255,0,0], rec)
+            pass
 
 
     def draw_fire(self, box):
@@ -1506,36 +1926,29 @@ class Game:
     def draw_enemy(self, box, enemy):
         #pygame.draw.rect(self._screen, [255,255,0], box)
         try:
-            self._screen.blit(enemy.img, enemy.cords)
+            self._screen.blit(enemy.return_img(), enemy.return_img_cords())
+            pass
         except AttributeError:
-            print(self._screen)
-            print(type(self._screen))
+            pass
         health=enemy.speed
         cords=enemy.cords
         #self.get_text(str(str(health)), cords, [255,255,255])
 
 
     def iterate_enemies(self, fire_check, s_fire_check, over):
+        if self._enemies==[[] for i in self._enemies]:
+            return None
         player_box=self.player.return_box()
         player=self.player.return_img()
         if self.dis:
             player=pygame.mask.from_surface(player)
-        player_cords=self.player.return_cords()
+        player_cords=self.player.return_img_cords()
 
         self.closest={
             "for0":[-1,-1],
-            "bk0":[-1,-1],
-            "for1":[-1,-1],
-            "bk1":[-1,-1],
-            "for2":[-1,-1],
-            "bk2":[-1,-1],
-            "for3":[-1,-1],
-            "bk3":[-1,-1]
-#            "for":{},
-#            "bk":{},
-#            "up":-1,
-#            "bot":-1
+            "bk0":[-1,-1]
         }
+        a_player_cords=dp(self.player.return_cords())
 
         laser_box=self.player.return_gun_box()
         s_laser_box=self.player.return_S_gun_box()
@@ -1547,40 +1960,15 @@ class Game:
                 alive=True
                 box=enemy.return_box()
 
-                if self.dis:
+                if self.dis and self.draw:
                     self.draw_enemy(box, enemy)
                 self.check_colision(player, player_cords, index, index2, enemy, box, player_box)
 
                 x_dif=player_cords[0]-enemy.cords[0]
                 y_dif=player_cords[1]-enemy.cords[1]
 
-                if x_dif>0:
-                    key="for"
-                else:
-                    key="bk"
-
-                for i in range(4):
-                    u_key=str(key+str(i))
-                    if self.closest[u_key][0]==-1:
-                        self.closest[u_key]=[x_dif, y_dif]
-                        break
-                for i in range(4):
-                    u_key=str(key+str(i))
-                    if abs(self.closest[u_key][0])>abs(x_dif):
-                        self.closest[u_key]=[x_dif, y_dif]
-                        break
-
-                #if self.closest[key]==-1 or abs(self.closest[key])>abs(x_dif):
-                #    self.closest[key]=abs(x_dif)
-
-                '''
-                if y_dif>0:
-                    key="up"
-                else:
-                    key="bot"
-                if self.closest[key]==-1 or abs(self.closest[key])>abs(y_dif):
-                    self.closest[key]=abs(y_dif)
-                '''
+                self.update_close(x_dif, y_dif)
+                self.update_vis(x_dif, y_dif, a_player_cords, enemy.return_cords(), enemy.return_size())
 
                 if fire_check:
                     damage=self.player.return_damage()
@@ -1595,6 +1983,271 @@ class Game:
                 self.delete_enemies(index, index2, enemy)
 
 
+    def comp_vis(self):
+        pl_cords=dp(self.player.return_cords())
+        rev_cords=[self.screen_x-pl_cords[0], self.screen_y-pl_cords[1]]
+        for key, val in self.vision.items():
+            if key==0:
+                new_val=self.screen_x-pl_cords[0]
+            elif key==180:
+                new_val=pl_cords[0]
+            elif key==90:
+                new_val=self.screen_y-pl_cords[1]
+            elif key==270:
+                new_val=pl_cords[1]
+            elif key==45:
+                tri_side=min(rev_cords[0], rev_cords[1])
+                new_val=((tri_side**2)*2)**0.5
+            elif key==135:
+                tri_side=min(pl_cords[0], rev_cords[1])
+                new_val=((tri_side**2)*2)**0.5
+            elif key==315:
+                tri_side=min(rev_cords[0], pl_cords[1])
+                new_val=((tri_side**2)*2)**0.5
+            elif key==225:
+                tri_side=min(pl_cords[0], pl_cords[1])
+                new_val=((tri_side**2)*2)**0.5
+            elif key==11.25:
+                new_val=min(
+                    ((rev_cords[0])**2+(rev_cords[0]/self.hor)**2)**0.5,
+                    ((rev_cords[1]*self.hor)**2+(rev_cords[1])**2)**0.5
+                )
+            elif key==168.75:
+                new_val=min(
+                    ((pl_cords[0])**2+(pl_cords[0]/self.hor)**2)**0.5,
+                    ((rev_cords[1]*self.hor)**2+(rev_cords[1])**2)**0.5
+                )
+            elif key==191.25:
+                new_val=min(
+                    ((pl_cords[0])**2+(pl_cords[0]/self.hor)**2)**0.5,
+                    ((pl_cords[1]*self.hor)**2+(pl_cords[1])**2)**0.5
+                )
+            elif key==348.75:
+                new_val=min(
+                    ((rev_cords[0])**2+(rev_cords[0]/self.hor)**2)**0.5,
+                    ((pl_cords[1]*self.hor)**2+(pl_cords[1])**2)**0.5
+                )
+
+
+            self.vision[key]=min(new_val, val)
+
+
+    def move_hor(self, ang, cur):
+        if ang%180<90:
+            ad=45/4
+        else:
+            ad=-45/4
+        cur=(cur+ad)%360
+        return cur
+
+
+    def update_close(self, x_dif, y_dif):
+        if x_dif>0:
+            key="for"
+        else:
+            key="bk"
+
+        rgn=int(len(self.closest.keys())/2)
+
+        for i in range(rgn):
+            u_key=str(key+str(i))
+            if self.closest[u_key][0]==-1:
+                self.closest[u_key]=[x_dif, y_dif]
+                break
+        for i in range(rgn):
+            u_key=str(key+str(i))
+            if abs(self.closest[u_key][0])>abs(x_dif):
+                self.closest[u_key]=[x_dif, y_dif]
+                break
+
+        #if self.closest[key]==-1 or abs(self.closest[key])>abs(x_dif):
+        #    self.closest[key]=abs(x_dif)
+
+        '''
+        if y_dif>0:
+            key="up"
+        else:
+            key="bot"
+        if self.closest[key]==-1 or abs(self.closest[key])>abs(y_dif):
+            self.closest[key]=abs(y_dif)
+        '''
+
+
+    def update_vis(self, x_dif, y_dif, cords, box, size):
+        x_dif=-x_dif
+        y_dif=-y_dif
+        #x=90*(x_dif<0 and y_dif>0)
+        #y=180*(y_dif<0)
+        #x2=90*(x_dif>0 and y_dif<0)
+        #lims=[x+y+x2, (x+y+x2+90)]
+        box=[box[i]-(size[i]*0.7)/2 for i in range(2)]
+        size=[size[i]*0.7 for i in range(2)]
+
+        if x_dif==0:
+            ang=90
+        else:
+            ang=np.arctan(abs(y_dif/x_dif))*180/np.pi
+        if x_dif<0 and y_dif<0:
+            ang+=180
+        elif x_dif<0:
+            ang=180-ang
+        elif y_dif<0:
+            ang=360-ang
+        sc=360/self.cov
+        ang=(ang//sc)*sc
+        ang%=360
+        angs=[(ang-sc)%360, ang, (ang+sc)%360]
+
+        for cur in angs:
+            if not(hor) and cur in [0, 180]:
+                for i in [-1, 1]:
+                    cur2=self.move_hor(i, cur)
+                    val=self.check_vis3(cords, cur2, [box[0], box[0]+size[0]], [box[1], box[1]+size[1]])
+                    if val:
+                        self.vision[cur2%360]=min(self.vision[cur2%360], val)
+                continue
+
+        #for cur in self.vision.keys():
+            #val=self.check_vis2(cords, cur, box, self.vision[cur])
+            val=self.check_vis3(cords, cur, [box[0], box[0]+size[0]], [box[1], box[1]+size[1]])
+            if val:
+                self.vision[cur%360]=min(self.vision[cur%360], val)
+
+
+    def check_vis(self, cords, ang, xs, ys):
+        ang_norm=ang%90
+        ang_dir=ang//90
+        if ang_dir%2==0:
+            x, y=self.angs(ang_norm)
+            multi=1
+        else:
+            y, x=self.angs(ang_norm)
+            multi=-1
+
+        c=multi*(y/(x+0.000001))
+        print(c)
+
+        outs=[]
+        for i in range(1):
+            if y==0:
+                x_check=cords[1]
+            elif y==0:
+                y_check=cords[0]
+            else:
+                x_check=c*(xs[i]-cords[0])+cords[1]
+                y_check=(1/c)*(ys[i]-cords[1])+cords[0]
+
+            if x!=0 and ys[0]<x_check<ys[1]:
+                if (xs[i]>=cords[1] and ang_dir in [0, 1]) or (xs[i]<=cords[1] and ang_dir in [2, 3]):
+                    val=round(
+                        (
+                            (cords[0]-xs[i])**2+
+                            (cords[1]-x_check)**2
+                        )**0.5, 4
+                    )
+                    outs.append(val)
+            if y!=0 and xs[0]<y_check<xs[1]:
+                if (ys[i]>=cords[0] and ang_dir in [0, 3]) or (ys[i]<=cords[0] and ang_dir in [1, 2]):
+                    val=round(
+                        (
+                            (cords[0]-y_check)**2+
+                            (cords[1]-ys[i])**2
+                        )**0.5, 4
+                    )
+                    outs.append(val)
+
+        if outs==[]:
+            return None
+        return min(outs)
+
+
+    def check_vis2(self, cords, ang, box, mx):
+        ang_norm=ang%90
+        ang_dir=ang//90
+        if ang_dir//2==0:
+            x, y=self.angs(ang_norm)
+            if ang_dir==2:
+                x=-x
+                y=-y
+        else:
+            y, x=self.angs(ang_norm)
+            if ang_dir==1:
+                x=-x
+            else:
+                y=-y
+
+        x*=50
+        y*=50
+        hyp=round((x**2+y**2)**0.5, 2)
+        print(hyp)
+        print(x, y)
+        mult=0
+
+        while True:
+            mult+=1
+            cords[0]+=x
+            cords[1]+=y
+
+            if box.collidepoint(cords):
+                return mult*hyp
+            if mult*hyp>=mx:
+                return mult*hyp
+
+
+    def check_vis3(self, cords, ang, xs, ys):
+        c=self.vis_trans[ang]
+        outs=[]
+
+        if ang<90 or ang>270:
+            x_pos=0
+        else:
+            x_pos=1
+
+        if ang<180:
+            y_pos=0
+        else:
+            y_pos=1
+
+        if c==0:
+            if ang%180==0:
+                if ys[0]<=cords[1]<=ys[1]:
+                    return abs(cords[0]-xs[x_pos])
+                else:
+                    return None
+            else:
+                if xs[0]<=cords[0]<=xs[1]:
+                    return abs(cords[1]-ys[y_pos])
+                else:
+                    return None
+
+
+        x_check=c*(xs[x_pos]-cords[0])+cords[1]
+        y_check=(1/c)*(ys[y_pos]-cords[1])+cords[0]
+
+        x_dis, y_dis=0, 0
+
+        if ys[0]<x_check<ys[1]:
+            y_dis=(cords[1]-x_check)**2
+            x_dis=(cords[0]-xs[x_pos])**2
+
+        if xs[0]<y_check<xs[1]:
+            x_dis=(cords[0]-y_check)**2
+            y_dis=(cords[1]-ys[y_pos])**2
+
+        if x_dis==0 and y_dis==0:
+           return None
+        else:
+           return round((x_dis+y_dis)**0.5, 4)
+
+
+    def angs(self, ang):
+        if ang==11.25:
+            return 1, 1/self.hor
+        elif ang==78.75:
+            return 1/self.hor, 1
+        return round(np.cos(ang/180*np.pi), 5), round(np.sin(ang/180*np.pi), 5)
+
+
     def delete_enemies(self, index, index2, enemy):
         if enemy.check_map():
             self._enemies[index].pop(index2)
@@ -1603,6 +2256,7 @@ class Game:
 
 
     def check_colision(self, player, player_cords, index, index2, enemy, box, player_box):
+        #return None
         if box.colliderect(player_box):
             if not(self.dis):
                 self.loose_life(index, index2)
@@ -1610,7 +2264,7 @@ class Game:
         else:
             return None
 
-        enemy_cords=enemy.return_cords()
+        enemy_cords=enemy.return_img_cords()
         ofset=(int(enemy_cords[0]-player_cords[0]), int(enemy_cords[1]-player_cords[1]))
 
         enemy_mask=enemy.return_img()
@@ -1657,12 +2311,15 @@ class Game:
 
         base=int(50*self.sc_x)
 
-        self.get_text(mes, [screen_x/2-base*2, screen_y/2-base*3])
+        self.get_text(str(mes), [screen_x/2-base*2, screen_y/2-base*3])
 
-        self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-base*2, screen_y/2-base*2])
-        self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-base*2, screen_y/2-base])
-        self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-base*2, screen_y/2])
-        self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-base*2, screen_y/2+base])
+        try:
+            self.get_text(str("Kills: "+str(self.player.kills)), [screen_x/2-base*2, screen_y/2-base])
+            self.get_text(str("Score: "+str(round(self.score, 2))), [screen_x/2-base*2, screen_y/2-base*2])
+            self.get_text(str("Damage: "+str(self.player.damage)), [screen_x/2-base*2, screen_y/2])
+            self.get_text(str("Distance: "+str(self.distanse)), [screen_x/2-base*2, screen_y/2+base])
+        except AttributeError:
+            pass
 
 
 

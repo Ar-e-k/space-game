@@ -10,6 +10,8 @@ class player:
         self.map_size=map_size
         self.life=health
         self.max_life=health
+        self.life_counter_max=3000
+        self.life_counter=0
 
         self.cords=cords
 
@@ -107,6 +109,12 @@ class player:
         return self.teleport()
 
 
+    def spec_move(self, sc_x, sc_y):
+        self.cords[0]+=sc_x
+        self.cords[1]+=sc_y
+        return self.teleport2()
+
+
     def update_velocity(self):
         self.vertical+=self.vertical_ac
         self.horizontal+=self.horizontal_ac-self.recoil
@@ -186,10 +194,19 @@ class player:
         if self.shild:
             return True
         self.life-=1
-        if self.life==0:
+        if self.life<=0:
             return False
         else:
             return True
+
+
+    def count_life(self):
+        self.life_counter+=1
+        if self.life_counter==self.life_counter_max:
+            self.life_counter=0
+            return self.loose_life()
+
+        return True
 
 
     def gain_kills(self):
@@ -210,8 +227,12 @@ class player:
         return self.cords
 
 
+    def return_img_cords(self):
+        return [self.cords[i]-self.size[i]/2 for i in range(2)]
+
+
     def return_box(self):
-        box=pygame.Rect(self.cords, self.size) # The actuall box
+        box=pygame.Rect(self.return_img_cords(), self.size) # The actuall box
         #box=pygame.Rect(self.cords, [self.size[0]*4/9, self.size[1]])
         #box2=pygame.Rect([self.cords[0]+self.size[0]/3, self.cords[1]+self.size[1]/2-self.size[1]/5], [self.size[0]*2/3, self.size[1]*2/5])
         return box#, box2, self.ship'''
@@ -222,11 +243,11 @@ class player:
 
 
     def return_gun_box(self):
-        return self.gun.return_box(self.cords)
+        return self.gun.return_box(self.return_img_cords())
 
 
     def return_S_gun_box(self):
-        return self.secondary_gun.return_box(self.cords)
+        return self.secondary_gun.return_box(self.return_img_cords())
 
 
     def return_damage(self):
@@ -239,18 +260,20 @@ class player:
 
     def teleport(self):
         ret=0
-        if self.cords[0]>self.map_size[0]-self.size[0]:
-            self.cords[0]=self.map_size[0]-self.size[0]
+        if self.cords[0]>self.map_size[0]-self.size[0]/2:
+            self.cords[0]=self.map_size[0]-self.size[0]/2
             self.horizontal=0
             ret=self.horizontal_ac
-        if self.cords[0]<0:
-            self.cords[0]=0
+        if self.cords[0]<self.size[0]/2:
+            self.cords[0]=self.size[0]/2
             self.horizontal=0
             ret=self.horizontal_ac
         if self.cords[1]>self.map_size[1]-self.size[1]:
-            self.cords[1]=self.map_size[1]-self.size[1]
+            #self.cords[1]=self.map_size[1]-self.size[1]
+            self.cords[1]-=self.map_size[1]
         if self.cords[1]<0:
-            self.cords[1]=0
+            #self.cords[1]=0
+            self.cords[1]+=self.map_size[1]
         '''while self.cords[0]>self.map_size[0]:
             self.cords[0]-=self.map_size[0]
         while self.cords[0]<0:
@@ -259,6 +282,29 @@ class player:
             self.cords[1]-=self.map_size[1]
         while self.cords[1]<0:
             self.cords[1]+=self.map_size[1]'''
+        return ret
+
+
+    def teleport2(self):
+        ret=True
+
+        if self.cords[0]>self.map_size[0]-self.size[0]/2:
+            self.cords[0]=self.map_size[0]-self.size[0]/2
+            self.horizontal=0
+            ret=self.loose_life()
+        if self.cords[0]<self.size[0]/2:
+            self.cords[0]=self.size[0]/2
+            self.horizontal=0
+            ret=self.loose_life()
+        if self.cords[1]>self.map_size[1]-self.size[1]/2:
+            self.cords[1]=self.map_size[1]-self.size[1]/2
+            self.vertical=0
+            ret=self.loose_life()
+        if self.cords[1]<self.size[1]/2:
+            self.cords[1]=self.size[1]/2
+            self.vertical=0
+            ret=self.loose_life()
+
         return ret
 
 
@@ -373,7 +419,7 @@ class enemy:
         self.base_speed=speed
         self.size=size
 
-        self.cords=[screen_x+self.size[0], randint(0, screen_y-self.size[1])]
+        self.cords=[screen_x+self.size[0], randint(-self.size[1]/2, screen_y+self.size[1]/2)]
 
         self.img_name=img
         self.img=None
@@ -385,11 +431,11 @@ class enemy:
 
 
     def move(self, sc_x):
-        self.cords[0]-=int(self.speed*sc_x)
+        self.cords[0]-=self.speed*sc_x
 
 
     def change_speed(self, acc):
-        self.speed=int(self.base_speed+acc)
+        self.speed=self.base_speed+acc
         if self.speed==0:
             self.speed=1
 
@@ -414,11 +460,24 @@ class enemy:
 
 
     def return_cords(self):
-        return self.cords
+        return [int(self.cords[i]) for i in range(2)]
+
+
+    def return_img_cords(self):
+        cords=self.return_cords()
+        return [cords[i]-self.size[i]/2 for i in range(2)]
 
 
     def return_box(self):
-        box=pygame.Rect(self.cords, self.size) # The actuall box
+        cords=self.return_cords()
+        try:
+            if self.img_name=="Meteor.png":
+                box=pygame.Rect([cords[i]-(self.size[i]*0.7)/2 for i in range(2)], [self.size[i]*0.7 for i in range(2)]) # The actuall box
+            else:
+                box=pygame.Rect(self.return_img_cords(), self.size) # The actuall box
+        except AttributeError:
+            box=pygame.Rect(self.return_img_cords(), self.size) # The actuall box
+
         return box
 
 
