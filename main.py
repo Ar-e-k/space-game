@@ -2464,7 +2464,6 @@ def main(test=False, ev=False):
     screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
     print(screen_x, screen_y)
 
-
     ref_x=1366
     sc_x=screen_x/ref_x
 
@@ -2475,5 +2474,19 @@ def main(test=False, ev=False):
     return current_game
 
 
+def run_evolv(data):
+    try:
+        _, name = data
+    except ValueError:
+        print("Invalid number of arguments")
+        return None
+
+    current_game = main(ev = True)
+    current_game.evolv_init(name)
+
+
 if __name__=="__main__":
-    main()
+    if len(sys.argv) == 1:
+        main()
+    else:
+        run_evolv(sys.argv)
