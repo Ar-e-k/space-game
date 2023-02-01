@@ -2481,7 +2481,11 @@ def run_evolv(data):
         print("Invalid number of arguments")
         return None
 
-    current_game = main(ev = True)
+    print("here")
+    global screen_x, screen_y #globalises the hight and the width of the screen,
+    screen_x, screen_y = 1366, 768
+    current_game = Menu(None, [16, 9], 1)
+    print("here2")
     current_game.evolv_init(name)
 
 
