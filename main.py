@@ -547,6 +547,7 @@ class Menu:
         pros=(len(games)//workers)
         if pros < 5:
             workers = len(games) // 5
+            pros = 5
         print(pros)
         print(workers)
         print(len(nets))
