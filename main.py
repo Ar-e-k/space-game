@@ -545,6 +545,8 @@ class Menu:
         rem=[]
 
         pros=(len(games)//workers)
+        if pros < 5:
+            workers = len(games) // 5
         print(pros)
         print(workers)
         print(len(nets))
