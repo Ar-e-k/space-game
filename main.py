@@ -1,35 +1,35 @@
-global runs, telp, hor
-runs=80
-telp=True
-hor=False
-
-import sys
 import os
+import sys
 
-import pygame
 import pickle
-import dill
 
 from copy import copy
 from copy import deepcopy as dp
 
-import neat
-
 import multiprocessing as mp
 from multiprocessing import Pool
 
-import math
-from matplotlib import pyplot as plt
 import time
-import numpy as np
 import random
-from random import randint, uniform, choice
-
+from random import randint
 import inspect
+import math
+import numpy as np
+from matplotlib import pyplot as plt
+
+import neat
+
+import pygame
 
 import pygame_textinput
 import sprites
 import visualise as vis
+
+global runs, telp, hor
+runs = 80
+telp = True
+hor = False
+
 
 def evolv_Smain2(ge, games, nets, props, rng):
     playing=True
@@ -102,7 +102,7 @@ def evolv_Smain2(ge, games, nets, props, rng):
                 rem.append(i)
 
             if telp and False:
-                ge[i].fitness=games[i].distanse
+                ge[i].fitness = games[i].distanse
             else:
                 vals=list(pot_vals.values())
                 #ge[i].fitness+=sum([(pos**2)*i/5 for pos, i in enumerate(vals[::-1])])/16000
@@ -114,7 +114,11 @@ def evolv_Smain2(ge, games, nets, props, rng):
                 #ge[i].fitness+=sum([(pos**2.5)*i/11.7 for pos, i in enumerate(vals[-3::-1])])/16000
                 mins=[]
                 for key in [11.25, 45, 90, 135, 168.75]:
-                    mins.append(round(game.vision[key]+game.vision[key+180]-abs(game.vision[key]-game.vision [key+180])))
+                    mins.append(round(
+                        game.vision[key] +
+                        game.vision[key+180] -
+                        abs(game.vision[key]-game.vision[key+180])
+                    ))
                 ge[i].fitness+=(sum(mins)/10000)
 
             if ge[i].fitness>50000:
@@ -137,7 +141,7 @@ def evolv_Smain2(ge, games, nets, props, rng):
 
 
 def evolv_Smain(ge, games, nets, props, rng, fpsclock=None, dis=False):
-    rem=[]
+    rem = []
     trans=dict(zip([i for i in rng], [i for i in rng]))
     playing=True
     or_rng=dp(rng)
@@ -236,24 +240,46 @@ class Menu:
         self.secondary_gun_selected=None
 
         self.actions={
-            "New game":lambda:self.get_input(lambda x: self.check_game(self.infinite_runner_init, x), self.infinite_runner_display),
-            "Levels":lambda:self.get_input(lambda x: self.check_game(self.level_runner_init, x), self.level_runner_display),
-            "Evolv":lambda:self.get_input(lambda x: self.evolv_init(x), self.evolv_display, True),
-            "Op play":lambda:self.get_input(lambda x: self.run_winner(x), self.evolv_display, True),
-            "Select ship":lambda:self.pick_menu(self.ships, self.pick_ship),
-            "Select gun":lambda:self.pick_menu(self.guns, self.pick_gun),
-            "Select secondary gun":lambda:self.pick_menu(self.guns, self.pick_secondary_gun),
-            "Exit":self.exit
+            "New game": lambda: self.get_input(
+                lambda x: self.check_game(
+                    self.infinite_runner_init,
+                    x), self.infinite_runner_display
+            ),
+            "Levels": lambda: self.get_input(
+                lambda x: self.check_game(
+                    self.level_runner_init,
+                    x), self.level_runner_display
+            ),
+            "Evolv": lambda: self.get_input(
+                lambda x: self.evolv_init(x), self.evolv_display, True
+            ),
+            "Op play": lambda: self.get_input(
+                lambda x: self.run_winner(x), self.evolv_display, True
+            ),
+            "Select ship": lambda: self.pick_menu(
+                self.ships, self.pick_ship
+            ),
+            "Select gun": lambda: self.pick_menu(
+                self.guns, self.pick_gun
+            ),
+            "Select secondary gun": lambda: self.pick_menu(
+                self.guns, self.pick_secondary_gun
+            ),
+            "Exit": self.exit
         }
 
         self.unlocked_levels=[1, 2]
         self.levels={
             "Level 1":{
-                "hardness":1,
-                "enemies":self.enemies,
-                "seed":1,
-                "aim":Aim(kills=[10, "Minimum"], score=[1, "Minimum"], distanse=[3000, "Maximum"]),
-                "unlocked":True
+                "hardness": 1,
+                "enemies": self.enemies,
+                "seed": 1,
+                "aim": Aim(
+                    kills=[10, "Minimum"],
+                    score=[1, "Minimum"],
+                    distanse=[3000, "Maximum"]
+                ),
+                "unlocked" :True
             },
             "Level 2":{
                 "hardness":5,
@@ -284,7 +310,11 @@ class Menu:
         if size<6:
             x_pos=screen_x/3
             for i in range(0, size):
-                rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
+                rec=pygame.Rect(
+                    x_pos,
+                    (screen_y/8*1.5)+((i-0.75)*3*screen_y/16),
+                    rect_size[0], rect_size[1]
+                )
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
                 pos=(
@@ -295,7 +325,11 @@ class Menu:
         elif 5<size<11:
             x_pos=screen_x/9
             for i in range(0, int(size/2)):
-                rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
+                rec=pygame.Rect(
+                    x_pos,
+                    (screen_y/8*1.5)+((i-0.75)*3*screen_y/16),
+                    rect_size[0], rect_size[1]
+                )
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
                 pos=(
@@ -305,7 +339,11 @@ class Menu:
                 self.get_text(options_texts[i], pos, [0,255,0])
             x_pos=5*screen_x/9
             for i in range(int(size/2), int(size/2)*2):
-                rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
+                rec=pygame.Rect(
+                    x_pos,
+                    (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16),
+                    rect_size[0], rect_size[1]
+                )
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
                 pos=(
@@ -316,7 +354,11 @@ class Menu:
             if int(size/2)!=size/2:
                 i+=1
                 x_pos=screen_x/3
-                rec=pygame.Rect(x_pos, (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16), rect_size[0], rect_size[1])
+                rec=pygame.Rect(
+                    x_pos,
+                    (screen_y/8*1.5)+((i-int(size/2)-0.75)*3*screen_y/16),
+                    rect_size[0], rect_size[1]
+                )
                 buttons_on_screen[options_texts[i]]=rec
                 pygame.draw.rect(self._screen, [255,0,0], rec)
                 pos=(
@@ -376,7 +418,11 @@ class Menu:
 
 
     def display_parts_picked(self):
-        texts=["Ship: "+str(self.ship_selected), "Gun: "+str(self.gun_selected), "Second gun: "+str(self.secondary_gun_selected)]
+        texts=[
+            "Ship: "+str(self.ship_selected),
+            "Gun: "+str(self.gun_selected),
+            "Second gun: "+str(self.secondary_gun_selected)
+        ]
         for i in range(3):
             text=texts[i]
 
@@ -392,7 +438,11 @@ class Menu:
         text_width, text_height=self._font.size(text)
 
         rect_size=[self.screen_size[0]/4+text_width, self.screen_size[1]/6]
-        rec=pygame.Rect(self.screen_size[0]/2-rect_size[0]/2, self.screen_size[1]/2, rect_size[0], rect_size[1])
+        rec=pygame.Rect(
+            self.screen_size[0]/2-rect_size[0]/2,
+            self.screen_size[1]/2,
+            rect_size[0], rect_size[1]
+        )
         pygame.draw.rect(self._screen, [255,0,0], rec)
 
         pos=(
@@ -464,14 +514,19 @@ class Menu:
                 try:
                     filename="/ck_neat-"+str(max(lis))
                     print(filename)
-                    p=neat.Checkpointer.restore_checkpoint(path+"/"+name+filename)
+                    p=neat.Checkpointer.restore_checkpoint(
+                        path+"/"+name+filename
+                    )
                 except ValueError:
                     p=neat.Population(config)
         else:
             os.mkdir("evolv_info/"+name)
             p=neat.Population(config)
 
-        p.add_reporter(neat.Checkpointer(generation_interval=5,filename_prefix=str("evolv_info/"+name+"/ck_neat-")))
+        p.add_reporter(neat.Checkpointer(
+                generation_interval=5,filename_prefix=str(
+                    "evolv_info/"+name+"/ck_neat-")
+        ))
         return p
 
 
@@ -480,7 +535,11 @@ class Menu:
         config_path=os.path.join(local_dir, 'config-feedforward.txt')
 
         config=neat.config.Config(
-            neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path
+            neat.DefaultGenome,
+            neat.DefaultReproduction,
+            neat.DefaultSpeciesSet,
+            neat.DefaultStagnation,
+            config_path
         )
 
         if name=="":
@@ -503,13 +562,26 @@ class Menu:
         #visualize.plot_stats(stats, ylog=False, view=True)
         #visualize.plot_species(stats, view=True)
 
-        vis.plot_stats(stats, view=False, filename="stats.svg", pre=str("evolv_info/"+name+"/"))
-        vis.draw_net(config, winner, view=False, filename="vis", pre=str("evolv_info/"+name+"/"))
+        vis.plot_stats(
+            stats,
+            view=False,
+            filename="stats.svg",
+            pre=str("evolv_info/"+name+"/")
+        )
+        vis.draw_net(
+            config,
+            winner,
+            view=False,
+            filename="vis",
+            pre=str("evolv_info/"+name+"/")
+        )
 
         mes=winner.fitness
 
         des=lambda: self.run_winner(name)
-        self.end_screen(Game(self._screen, "player", "hardness", {}, 1, dis=True), mes)
+        self.end_screen(
+            Game(self._screen, "player", "hardness", {}, 1, dis=True), mes
+        )
 
 
     def evolv_main2(self, genomes, config):
@@ -534,7 +606,9 @@ class Menu:
 
             plr=self.defult_plr()
             seed=random.randrange(sys.maxsize)
-            play=Game(None, plr, hard, self.enemies, seed, self.sc_x, targeting=False)
+            play=Game(
+                None, plr, hard, self.enemies, seed, self.sc_x, targeting=False
+            )
             games.append(play)
 
             props.append(dp(pr_def))
@@ -556,7 +630,7 @@ class Menu:
             mp_res=[
                 pool.apply_async(
                     evolv_Smain2,
-                    (dp(ge), dp(games), dp(nets), dp(props), [j+i for j in range(pros)],)
+                    (ge, games, nets, props, [j+i for j in range(pros)],)
                 ) for i in range(0, workers*pros, pros)
             ]
             print("Pool generated")
@@ -646,11 +720,20 @@ class Menu:
                         plr.vertical,
                         plr.horizontal
                     )
-                inputs=inputs_1+tuple([i[0] for i in game.closest.values()])+tuple(i[1] for i in game.closest.values())
+                inputs=inputs_1+tuple(
+                    [i[0] for i in game.closest.values()]
+                )+tuple(i[1] for i in game.closest.values())
                 outs=nets[i].activate(inputs)
                 dirn=[round(i) for i in outs[0:2]]
 
-                pl, mes=game.frame(dir=dirn, fire=ins["fire"],  s_fire=ins["s_fire"], special=ins["spc"], fps=fpsclock, dis=dis)
+                pl, mes=game.frame(
+                    dir=dirn,
+                    fire=ins["fire"],
+                    s_fire=ins["s_fire"],
+                    special=ins["spc"],
+                    fps=fpsclock,
+                    dis=dis
+                )
 
                 if not(pl):
                     rem.append(i)
@@ -689,7 +772,11 @@ class Menu:
         config_path=os.path.join(local_dir, 'config-feedforward.txt')
 
         config=neat.config.Config(
-            neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path
+            neat.DefaultGenome,
+            neat.DefaultReproduction,
+            neat.DefaultSpeciesSet,
+            neat.DefaultStagnation,
+            config_path
         )
         plr=self.defult_plr()
         path="evolv_info/"+name+"/ev_winner.nnet"
@@ -717,16 +804,28 @@ class Menu:
             if int(test_amt/5)==0 or pos%int(test_amt/5)==int(test_amt/5)-1:
                 print("Test num: "+str(pos)+" took "+str(time.time()-start))
                 start=time.time()
-            game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=dis, draw=False, targeting=True)
+            game=Game(
+                self._screen,
+                plr,
+                hard,
+                self.enemies,
+                seed,
+                self.sc_x,
+                dis=dis,
+                draw=False,
+                targeting=True
+            )
             scr, dis=self.run_ai(game, net)
             avg_sc.append(scr)
             avg_dis.append(dis)
 
         if test_amt!=0:
             print("Average score: "+str(int(sum(avg_sc)/len(tests))))
-            print("Minimum/Maximum score: "+str(int(min(avg_sc)))+"/"+str(int(max(avg_sc))))
+            print("Minimum/Maximum score: "+str(
+                    int(min(avg_sc)))+"/"+str(int(max(avg_sc))))
             print("Average distance: "+str(int(sum(avg_dis)/len(tests))))
-            print("Minimum/Maximum distance: "+str(int(min(avg_dis)))+"/"+str(int(max(avg_dis))))
+            print("Minimum/Maximum distance: "+str(
+                int(min(avg_dis)))+"/"+str(int(max(avg_dis))))
             print("Best seed: "+str(tests[avg_dis.index(max(avg_dis))]))
 
             new_data=[i//1000 for i in avg_dis]
@@ -744,7 +843,16 @@ class Menu:
         seed=2594094090975880053
         #seed=246612780681178354
         print(seed)
-        game=Game(self._screen, plr, hard, self.enemies, seed, self.sc_x, dis=True, targeting=True)
+        game=Game(
+            self._screen,
+            plr,
+            hard,
+            self.enemies,
+            seed,
+            self.sc_x,
+            dis=True,
+            targeting=True
+        )
         self.run_ai(game, net)
 
 
@@ -1330,7 +1438,7 @@ class Menu:
 
     def exit(self):
         pygame.quit()
-        sys.exit()
+        #sys.exit()
 
 
 
@@ -2199,7 +2307,6 @@ class Game:
 
     def check_vis3(self, cords, ang, xs, ys):
         c=self.vis_trans[ang]
-        outs=[]
 
         if ang<90 or ang>270:
             x_pos=0
@@ -2463,8 +2570,10 @@ def main(test=False, ev=False):
     elif prop<1.8:
         screen=pygame.display.set_mode((x, int(x*9/16)))#, pygame.FULLSCREEN)
 
-    global screen_x, screen_y #globalises the hight and the width of the screen,
-    screen_x, screen_y=pygame.display.Info().current_w, pygame.display.Info().current_h
+    # Globalises the hight and the width of the screen,
+    global screen_x, screen_y
+    screen_x = pygame.display.Info().current_w
+    screen_y = pygame.display.Info().current_h
     print(screen_x, screen_y)
 
     ref_x=1366
@@ -2487,7 +2596,7 @@ def run_evolv(data):
     print("here")
     global screen_x, screen_y #globalises the hight and the width of the screen,
     screen_x, screen_y = 1366, 768
-    current_game = Menu(None, [16, 9], 1)
+    current_game = Menu(None, [screen_x, screen_y], 1)
     print("here2")
     current_game.evolv_init(name)
 
