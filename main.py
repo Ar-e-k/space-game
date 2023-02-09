@@ -31,7 +31,7 @@ TELP = True
 HOR = False
 
 
-def evolv_smain2(gens, games, nets, props, rng):
+def evolv_smain(gens, games, nets, props, rng):
     playing = True
     or_rng = dp(rng)
 
@@ -105,7 +105,7 @@ def evolv_smain2(gens, games, nets, props, rng):
                 fire=ins["fire"],
                 s_fire=ins["s_fire"],
                 special=ins["spc"],
-                fps=None, dis=False
+                fps=None
             )
 
             if not play or not ret:
@@ -114,7 +114,7 @@ def evolv_smain2(gens, games, nets, props, rng):
             if TELP and False:
                 gens[i].fitness = games[i].distanse
             else:
-                vals = list(pot_vals.values())
+                #vals = list(pot_vals.values())
                 #gens[i].fitness += sum(
                 #[(pos ** 2) * i / 5 for pos, i in enumerate(vals[::-1])]
                 #) / 16000
@@ -158,96 +158,6 @@ def evolv_smain2(gens, games, nets, props, rng):
 
     print("out of while, how")
     return None
-
-
-def evolv_smain(gens, games, nets, props, rng, fpsclock=None, dis=False):
-    rem = []
-    trans = dict(zip(list(rng), list(rng)))
-    playing = True
-    or_rng = dp(rng)
-    start = min(or_rng)
-    ln = len(or_rng)
-
-    while playing:
-        rem = []
-        sk = 0
-        for i in range(start, start + ln):
-            ret = True
-            try:
-                game = games[i]
-            except IndexError:
-                sk += 1
-                continue
-            ins = props[i]
-
-            plr = game.player
-
-            inputs_2 = tuple(i[0] for i in game.closest.values()
-                             ) + tuple(i[1] for i in game.closest.values())
-            inputs_3 = tuple(game.vision.values())
-
-            if TELP:
-                spec_inputs = (
-                    plr.cords[0] - game.target[0],
-                    plr.cords[1] - game.target[1]
-                ) + inputs_3
-
-                outs = nets[i].activate(inputs_3)
-                #outs = nets[i].activate(spec_inputs)
-                dirn = [0, 0]
-                x, y = [round(i) for i in outs[0:2]]
-
-                ret = plr.spec_move(x, y)
-            else:
-                inputs_1 = (
-                    plr.cords[0] - game.target[0],
-                    plr.cords[1] - game.target[1],
-                    plr.vertical,
-                    plr.horizontal
-                )
-                inputs = inputs_1 + inputs_2
-
-                outs = nets[i].activate(inputs_1)
-                dirn = [round(i) for i in outs[0:2]]
-
-            play, _ = game.frame(
-                dirn=dirn,
-                fire=ins["fire"],
-                s_fire=ins["s_fire"],
-                special=ins["spc"],
-                fps=fpsclock,
-                dis=dis
-            )
-
-            if not play or not ret:
-                rem.append(i)
-
-            if TELP:
-                gens[trans[i]].fitness = game.distanse
-            else:
-                gens[trans[i]].fitness = game.score
-
-            if play and game.multiplier < 0:
-                rem.append(i)
-                gens[trans[i]].fitness = -1000
-
-        rem.sort()
-
-        for j in rem[::-1]:
-            ln -= 1
-            for key, val in trans.items():
-                if key > j:
-                    trans[key - 1] = val
-
-            #gens.pop(j)
-            nets.pop(j)
-            games.pop(j)
-            props.pop(j)
-
-        if ln in [0, sk]:
-            playing = False
-            return [gens, or_rng]
-
 
 
 class Menu:
@@ -418,9 +328,11 @@ class Menu:
                             action(key)
 
 
-    def get_text(self, text, pos, colour=[255, 255, 255],
-                 center=False, back=False
-                 ):
+    def get_text(
+            self, text, pos, colour=None,
+            center=False, back=False
+    ):
+        colour = colour or [255, 255, 255]
         text_width, text_height = self._font.size(text)
 
         if center:
@@ -592,12 +504,10 @@ class Menu:
         winner = population.run(self.evolv_main2,RUNS)
         win = population.best_genome
 
-        pickle.dump(win, open("evolv_info/" + name + "/ev_winner.nnet", 'wb'))
-        pickle.dump(winner, open("evolv_info/" + name + "/winner.nnet", 'wb'))
-
-        #visualize.draw_net(config, winner, True)
-        #visualize.plot_stats(stats, ylog=False, view=True)
-        #visualize.plot_species(stats, view=True)
+        with open("evolv_info/" + name + "/ev_winner.nnet", 'wb') as fil:
+            pickle.dump(win, fil)
+        with open("evolv_info/" + name + "/winner.nnet", 'wb') as fil:
+            pickle.dump(winner, fil)
 
         vis.plot_stats(
             stats,
@@ -615,7 +525,6 @@ class Menu:
 
         mes = winner.fitness
 
-        #des = lambda: self.run_winner(name)
         self.end_screen(
             Game(self._screen, "player", "hardness", {}, 1, dis=True), mes
         )
@@ -652,8 +561,6 @@ class Menu:
 
             props.append(dp(pr_def))
 
-        #self.games[0].init_dis(self._screen)
-
         workers = mp.cpu_count()
 
         pros = len(games) // workers
@@ -667,7 +574,7 @@ class Menu:
             print("Pool started")
             mp_res = [
                 pool.apply_async(
-                    evolv_smain2,
+                    evolv_smain,
                     (genoms, games, nets, props, [j + i for j in range(pros)],)
                 ) for i in range(0, workers * pros, pros)
             ]
@@ -680,11 +587,6 @@ class Menu:
             print("Joined")
         print("Pool closed")
 
-        #for event in pygame.event.get():
-        #    if event.type == pygame.QUIT:
-        #       pygame.quit()
-        #       quit()
-
         for ge_out, rng in rems:
             for i in rng:
                 try:
@@ -692,122 +594,8 @@ class Menu:
                 except IndexError or KeyError:
                     pass
 
-        #self.get_text(str(len(self.games)), [0, 0])
-        #pygame.display.flip()
-        #self.fpsclock.tick(fps)
 
-
-        #if 0 in rem:
-        #    self.games[0].init_dis(self._screen)
-
-
-    def evolv_main(self, genomes, config):
-        nets = []
-        genoms = []
-        games = []
-        props = []
-        pr_def = {
-            "dirn": [0, 0],
-            "fire": False,
-            "s_fire": False,
-            "spc": False
-        }
-        hard = 1
-
-        for _, gen in genomes:
-            net = neat.nn.FeedForwardNetwork.create(gen, config)
-            nets.append(net)
-
-            gen.fitness = 0
-            genoms.append(gen)
-
-            plr = self.defult_plr()
-            seed = random.randrange(sys.maxsize)
-            play = Game(
-                self._screen, plr, hard,
-                self.enemies, seed,
-                self.sc_x
-            )
-            games.append(play)
-
-            props.append(dp(pr_def))
-
-
-        #games[0].init_dis(self._screen)
-
-        playing = True
-        fpsclock = pygame.time.Clock()
-        fps = 0
-        all_fps = []
-
-        while playing:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
-
-            rem = []
-            for i, _ in enumerate(games):
-                ins = props[i]
-
-                dis = False
-                if i == 0 and False:
-                    dis = True
-
-                game = games[i]
-                plr = game.player
-                inputs_1 = (
-                        plr.cords[0] - SC_X/2,
-                        plr.cords[1] - SC_Y/2,
-                        plr.vertical,
-                        plr.horizontal
-                    )
-                inputs = inputs_1 + tuple(
-                    i[0] for i in game.closest.values()
-                ) + tuple(i[1] for i in game.closest.values())
-                outs = nets[i].activate(inputs)
-                dirn = [round(i) for i in outs[0:2]]
-
-                play, mes = game.frame(
-                    dirn=dirn,
-                    fire=ins["fire"],
-                    s_fire=ins["s_fire"],
-                    special=ins["spc"],
-                    fps=fpsclock,
-                    dis=dis
-                )
-
-                if not play:
-                    rem.append(i)
-
-                genoms[i].fitness = games[i].score
-                if play and games[i].multiplier < 0:
-                    rem.append(i)
-                    genoms[i].fitness = games[i].score - 1000
-
-            for j in rem[::-1]:
-                genoms.pop(j)
-                nets.pop(j)
-                games.pop(j)
-                props.pop(j)
-
-            rec = pygame.Rect([0, 0], [100, 100])
-            pygame.draw.rect(self._screen, [0, 0, 0], rec)
-            self.get_text(str(len(games)), [0, 0])
-            pygame.display.flip()
-            fpsclock.tick(fps)
-            if len(games) > 150:
-                all_fps.append(fpsclock.get_fps())
-
-            if len(games) == 0:
-                playing = False
-                #print(sum(all_fps) / len(all_fps))
-            else:
-                if 0 in rem and False:
-                    games[0].init_dis(self._screen)
-
-
-    def run_winner(self, name):
+    def run_winner(self, name, test_amt=0):
         hard = 0.1
 
         local_dir = os.path.dirname(__file__)
@@ -821,21 +609,19 @@ class Menu:
             config_path
         )
         plr = self.defult_plr()
-        path = "evolv_info/" + name + "/ev_winner.nnet"
         path = "evolv_info/" + name + "/winner.nnet"
         try:
-            fil = open(path, "rb")
+            with open(path, "rb") as fil:
+                gen = pickle.load(fil)
         except FileNotFoundError:
             print(path, "no file")
             self.main_menu()
             return "Invalid file"
-        gen = pickle.load(fil)
+
         net = neat.nn.FeedForwardNetwork.create(gen, config)
 
         random.seed(42069)
         dis = False
-        test_amt = 200
-        test_amt = 0
         tests = [random.randrange(sys.maxsize) for i in range(test_amt)]
         avg_sc = []
         avg_dis = []
@@ -843,7 +629,7 @@ class Menu:
 
         start = time.time()
         for pos, seed in enumerate(tests):
-            if int(test_amt / 5) == 0 or pos%int(
+            if int(test_amt / 5) == 0 or pos % int(
                     test_amt / 5) == int(test_amt / 5) - 1:
                 print("Test num: " + str(
                     pos) + " took " + str(time.time() - start))
@@ -874,6 +660,7 @@ class Menu:
             path = "evolv_info/" + name + "/testdata" + str(test_amt)
             with open(path, "wb") as file:
                 pickle.dump(avg_dis, file)
+            return None
 
         random.seed(time.time())
         seed = random.randrange(sys.maxsize)
@@ -901,15 +688,23 @@ class Menu:
         }
 
         playing = True
-        fpsclock = pygame.time.Clock()
+        fpsclock = None
+        if game.dis:
+            fpsclock = pygame.time.Clock()
         fps = 120
 
         while playing:
             ret = True
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
+            if game.dis:
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == 27:
+                            self.exit()
+                    if event.type == pygame.QUIT:
+                        self.exit()
+                pygame.display.flip()
+                fpsclock.tick(fps)
+
 
             inputs_1 = (
                 plr.cords[0] - game.target[0],
@@ -960,15 +755,12 @@ class Menu:
             ret = game.spec_move(x, y)
             play, mes = game.frame(
                 dirn=dirn, fire=ins["fire"],  s_fire=ins["s_fire"],
-                special=ins["spc"], fps=fpsclock, dis=game.dis
+                special=ins["spc"], fps=fpsclock
             )
 
             if game.draw:
                 game.get_text(str([round(i, 2) for i in outs]), [600, 300])
                 game.get_text(str([round(i, 2) for i in outs2]), [600, 250])
-
-            pygame.display.flip()
-            fpsclock.tick(fps)
 
             if not play or not ret:
                 playing = False
@@ -1437,40 +1229,13 @@ class Menu:
             )
             special = False
             for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == 27:
-                        #key 27 is escape, clicking it quits the game
-                        play.end_game()
-                    elif event.key == 32: #pausing the game
-                        paused = True
-                    elif event.key in [97, 100]:
-                        val = int(event.key)
-                        val = val - 97
-                        val = val / 1.5
-                        val -= 1
-                        direction[0] = val
-                    elif event.key in [119, 115]:
-                        val = int(event.key)
-                        val = val - 115
-                        val = val / 2
-                        val -= 1
-                        val *= -1
-                        direction[1] = val
-                    elif event.key == 106:
-                        fire = True
-                    elif event.key == 107:
-                        s_fire = True
-                    elif event.key == 108:
-                        special = True
-                if event.type == pygame.KEYUP:
-                    if event.key in [97, 100]:
-                        direction[0] = 0
-                    elif event.key in [119, 115]:
-                        direction[1] = 0
-                    elif event.key == 106:
-                        fire = False
-                    elif event.key == 107:
-                        s_fire = False
+                if event.type in [pygame.KEYDOWN, pygame.KEYUP]:
+                    ret = self.process_keys(
+                        event, play, direction,
+                        fire, s_fire, special
+                    )
+                    paused, direction, fire, s_fire, special = ret
+
             while paused:
                 pygame.display.flip()
                 direction[0] = 0
@@ -1491,11 +1256,43 @@ class Menu:
             self.save_result(play.score, play.seed)
         elif isinstance(
                 Level("screen", "player", "hardness", {}, 1, "aim"),
-                play
+                type(play)
         ):
             self.save_level_result(play.score, play.seed)
 
         self.end_screen(play, mes)
+
+
+    def process_keys(
+            self, event, play,
+            dirn, fire, s_fire, special
+    ):
+        paused = False
+        if event.key == 27:
+        #key 27 is escape, clicking it quits the game
+            play.end_game()
+        elif event.key == 32: #pausing the game
+            paused = event.type == pygame.KEYDOWN
+        elif event.key in [97, 100]:
+            if event.type == pygame.KEYDOWN:
+                val = (int(event.key) - 97) / 1.5 - 1
+                dirn[0] = val
+            else:
+                dirn[0] = 0
+        elif event.key in [119, 115]:
+            if event.type == pygame.KEYDOWN:
+                val = -((int(event.key) - 115) / 2 - 1)
+                dirn[1] = val
+            else:
+                dirn[1] = 0
+        elif event.key == 106:
+            fire = event.type == pygame.KEYDOWN
+        elif event.key == 107:
+            s_fire = event.type == pygame.KEYDOWN
+        elif event.key == 108:
+            special = event.type == pygame.KEYDOWN
+
+        return (paused, dirn, fire, s_fire, special)
 
 
     def end_screen(self, play, mes, des=None):
@@ -1535,42 +1332,55 @@ class Menu:
         name = "saves.scores"
         score = round(score, 2)
         try:
-            results = pickle.load(open("Scores/" + name, "rb"))
+            with open("Scores/" + name, "rb") as fil:
+                results = pickle.load(fil)
         except FileNotFoundError:
             results = {}
+
         if str(seed) in results.keys():
             results[str(seed)].append(score)
         else:
             results[str(seed)] = [score]
-        pickle.dump(results, open('Scores/' + name, "wb"))
+
+        with open('Scores/' + name, "wb") as fil:
+            pickle.dump(results, fil)
         self.load_result()
 
 
+    # TO DO: Combine with save results
     def save_level_result(self, score, level):
         name = "level_saves.scores"
         score = round(score, 2)
         try:
-            results = pickle.load(open("Scores/" + name, "rb"))
+            with open("Scores/" + name, "rb") as fil:
+                results = pickle.load(fil)
         except FileNotFoundError:
             results = {}
+
         if str(level) in results.keys():
             results[str(level)].append(score)
         else:
             results[str(level)] = [score]
-        pickle.dump(results, open('Scores/' + name, "wb"))
+
+        with open('Scores/' + name, "wb") as fil:
+            pickle.dump(results, fil)
         self.load_result()
 
 
     def load_result(self):
         name = "saves.scores"
         try:
-            results = pickle.load(open("Scores/" + name, "rb"))
+            with open("Scores/" + name, "rb") as fil:
+                results = pickle.load(fil)
         except FileNotFoundError:
             results = {}
+
         self.results = results
         name = "level_saves.scores"
+
         try:
-            results_l = pickle.load(open("Scores/" + name, "rb"))
+            with open("Scores/" + name, "rb") as fil:
+                results_l = pickle.load(fil)
         except FileNotFoundError:
             results_l = {}
         self.level_results = results_l
@@ -1578,6 +1388,7 @@ class Menu:
 
     def exit(self):
         pygame.quit()
+        sys.exit()
 
 
 
@@ -1603,22 +1414,18 @@ class Game:
         self.ost = ost
         self.dis = dis
         self.draw = draw
-        if sc_size is None:
-            self.screen_x, self.screen_y = SC_X, SC_Y
-        else:
-            self.screen_x, self.screen_y = sc_size
+        self.screen_x, self.screen_y = sc_size or (SC_X, SC_Y)
 
         self.player = player
 
         self.targeting = targeting
         self.t_div = self.screen_x
         self.t_div = 360
-        if not self.targeting:
-            self.target = [SC_X / 2, SC_Y / 2]
-        else:
+
+        self.target = [SC_X / 2, SC_Y / 2]
+        if self.targeting:
             self.target_counter = 0
             self.target_counter_max = 4800 / self.t_div
-            self.target = [SC_X / 2, SC_Y / 2]
 
         try:
             self.player.cords = dp(self.target)
@@ -1690,13 +1497,14 @@ class Game:
         for key in self.vis_trans.keys():
             if key % 90 == 0:
                 self.vis_trans[key] = 0
-            elif key != int(key) and True:
+            elif key != int(key):
                 if key % 180 > 90:
                     self.vis_trans[key] = - 1 / self.hor
                 else:
                     self.vis_trans[key] = 1 / self.hor
 
         self.special_counter = 1
+        self.special = False
 
         self.status = True
 
@@ -1726,7 +1534,7 @@ class Game:
         self.img = pygame.image.load(
             "Models/Back/" + self.img_name
         ).convert_alpha()
-        self.bc = [
+        self.bc_stars = [
             1, 10,
             [int(10 * self.sc_x), int(70 * self.sc_x)],
             self.img_name, SC_X, SC_Y
@@ -1743,37 +1551,12 @@ class Game:
         self.player.vertical_thrust(dirn[1])
 
 
-    def frame(self, dirn, fire, s_fire, special, fps, dis=True):
+    def frame(self, dirn, fire, s_fire, special, fps):
         for key in self.vision.keys():
             self.vision[key] = self.screen_x
-        self.dis = dis
 
         if self.targeting:
-            self.target_counter += 1
-            if self.target_counter == self.target_counter_max:
-                self.target_counter = 0
-                new_target = [-1, -1]
-                while not (
-                        0 < new_target[0] < self.screen_x and
-                        0 < new_target[1] < self.screen_y
-                ):
-                    new_target[0] = (
-                        self.target[0] +
-                        randint(
-                            -int(self.screen_x / self.t_div),
-                            int(self.screen_x / self.t_div)
-                        )
-                    )
-                    new_target[1] = (
-                        self.target[1] +
-                        randint(
-                            -int(self.screen_x / self.t_div),
-                            int(self.screen_x / self.t_div)
-                        )
-                    )
-
-                self.target = new_target #[
-                #randint(0, self.screen_x), randint(0, self.screen_y)]
+            self.change_target()
 
         self.update_acceleration(dirn)
         self.player.update_velocity()
@@ -1802,13 +1585,12 @@ class Game:
 
         if self.dis and self.draw:
             self.draw_background(fps)
-            #self.add_stars(over=over)
             self.draw_player()
             if self.targeting:
                 rec = pygame.Rect([i - 20 for i in self.target], [40, 40])
-                #pygame.draw.rect(self._screen, [255, 255, 0], rec)
+                pygame.draw.rect(self._screen, [255, 255, 0], rec)
 
-        self.iterate_enemies(fire_check, s_fire_check, over)
+        self.iterate_enemies(fire_check, s_fire_check)
 
         self.comp_vis()
         if  self.dis and self.draw:
@@ -1847,6 +1629,33 @@ class Game:
         self.update_score()
 
         return self.status, "You lost"
+
+
+    def change_target(self):
+        self.target_counter += 1
+        if self.target_counter == self.target_counter_max:
+            self.target_counter = 0
+            new_target = [-1, -1]
+            while not (
+                    0 < new_target[0] < self.screen_x and
+                    0 < new_target[1] < self.screen_y
+            ):
+                new_target[0] = (
+                    self.target[0] +
+                    randint(
+                        -int(self.screen_x / self.t_div),
+                        int(self.screen_x / self.t_div)
+                    )
+                )
+                new_target[1] = (
+                    self.target[1] +
+                    randint(
+                        -int(self.screen_x / self.t_div),
+                        int(self.screen_x / self.t_div)
+                    )
+                )
+
+            self.target = new_target
 
 
     def update_score(self):
@@ -1900,10 +1709,10 @@ class Game:
 
         score += (min([score_x, score_y]) * 2)
 
-        vel = [
+        '''vel = [
             self.player.vertical,
             self.player.horizontal
-        ]
+        ]'''
         #score -= abs(vel[0])
         #score -= abs(vel[1])
 
@@ -2007,7 +1816,7 @@ class Game:
 
 
     def start_stars(self):
-        stats = copy(self.bc)
+        stats = copy(self.bc_stars)
         stats = list(stats)
         max_x = stats[4]
         cur_x = 0
@@ -2017,10 +1826,10 @@ class Game:
             cur_x += speed
 
 
-    def add_stars(self, over=0, x_cord=False):
+    def add_stars(self, x_cord=False):
         rem = []
         if randint(0, 100) > 40:
-            stats = copy(self.bc)
+            stats = copy(self.bc_stars)
             stats = list(stats)
             stats[1] += self.multiplier - 1
             if x_cord:
@@ -2120,15 +1929,17 @@ class Game:
         x = int(abs(pos[0] - self.target[0]) / 10) * 10
         y = int(abs(pos[1] - self.target[1]) / 10) * 10
 
-        ac = [
+        acceleration = [
             self.player.vertical_ac,
             self.player.horizontal_ac
             ]
-        self.get_text(
-            str("vertical acceleration: " + str(round(ac[0], 5) * -1)), [0, 0]
+        self.get_text(str(
+            "vertical acceleration: " + str(round(acceleration[0], 5) * -1)
+        ), [0, 0]
         )
-        self.get_text(
-            str("horizontal acceleration: " + str(round(ac[1], 5))), [0, 50]
+        self.get_text(str(
+            "horizontal acceleration: " + str(round(acceleration[1], 5))
+        ), [0, 50]
         )
 
         vel = [
@@ -2211,7 +2022,8 @@ class Game:
         return None
 
 
-    def get_text(self, text, pos, colour=[255,255,255]):
+    def get_text(self, text, pos, colour=None):
+        colour = colour or [255,255,255]
         text = self._font.render(text, False, colour)
         if self.dis:
             self._screen.blit(text, pos)
@@ -2241,23 +2053,19 @@ class Game:
             pygame.draw.line(self._screen, [255, 0, 0], pl_cords, end_cords)
             pygame.draw.circle(self._screen, [255, 0, 0], end_cords, 10)
 
-            end_cords = []
-            end_cords.append(pl_cords[0] + int(150 * x))
-            end_cords.append(pl_cords[1] + int(150 * y))
-            #self.get_text(str(key) + " " + str(x) + " " + str(y), end_cords)
-
 
     def draw_player(self):
-        box = self.player.return_box()
+        #box = self.player.return_box()
         ship = self.player.return_img()
         #pygame.draw.rect(self._screen, [255,255,255], box)
         #pygame.draw.rect(self._screen, [255,255,255], box2)
         self._screen.blit(ship, self.player.return_img_cords())
         if self.target:
-            rec = pygame.Rect(
-                [i - 10 for i in self.player.return_cords()], [20, 20]
-            )
+            #rec = pygame.Rect(
+            #    [i - 10 for i in self.player.return_cords()], [20, 20]
+            #)
             #pygame.draw.rect(self._screen, [255,0,0], rec)
+            pass
 
 
     def draw_fire(self, box):
@@ -2270,17 +2078,19 @@ class Game:
 
 
     def draw_enemy(self, box, enemy):
+        if box:
+            pass
         #pygame.draw.rect(self._screen, [255,255,0], box)
         try:
             self._screen.blit(enemy.return_img(), enemy.return_img_cords())
         except AttributeError:
             pass
-        health = enemy.speed
-        cords = enemy.cords
+        #health = enemy.speed
+        #cords = enemy.cords
         #self.get_text(str(str(health)), cords, [255,255,255])
 
 
-    def iterate_enemies(self, fire_check, s_fire_check, over):
+    def iterate_enemies(self, fire_check, s_fire_check):
         if self._enemies == [[] for i in self._enemies]:
             return None
         player_box = self.player.return_box()
@@ -2351,57 +2161,28 @@ class Game:
 
     def comp_vis(self):
         pl_cords = dp(self.player.return_cords())
-        rev_cords = [self.screen_x - pl_cords[0], self.screen_y - pl_cords[1]]
+        rev_cords = [
+            self.screen_x - pl_cords[0], self.screen_y - pl_cords[1]
+        ] + pl_cords
         for key, val in self.vision.items():
-            if key == 0:
-                new_val = self.screen_x - pl_cords[0]
-            elif key == 180:
-                new_val = pl_cords[0]
-            elif key == 90:
-                new_val = self.screen_y - pl_cords[1]
-            elif key == 270:
-                new_val = pl_cords[1]
-            elif key == 45:
-                tri_side = min(rev_cords[0], rev_cords[1])
-                new_val = ((tri_side ** 2) * 2) ** 0.5
-            elif key == 135:
-                tri_side = min(pl_cords[0], rev_cords[1])
-                new_val = ((tri_side ** 2) * 2) ** 0.5
-            elif key == 315:
-                tri_side = min(rev_cords[0], pl_cords[1])
-                new_val = ((tri_side ** 2) * 2) ** 0.5
-            elif key == 225:
-                tri_side = min(pl_cords[0], pl_cords[1])
-                new_val = ((tri_side ** 2) * 2) ** 0.5
-            elif key == 11.25:
-                new_val = min(
-                    ((rev_cords[0]) ** 2 + (
-                        rev_cords[0]/self.hor) ** 2) ** 0.5,
-                    ((rev_cords[1] * self.hor) ** 2 + (
-                        rev_cords[1]) ** 2) ** 0.5
-                )
-            elif key == 168.75:
-                new_val = min(
-                    ((pl_cords[0]) ** 2 + (
-                        pl_cords[0]/self.hor) ** 2) ** 0.5,
-                    ((rev_cords[1] * self.hor) ** 2 + (
-                        rev_cords[1]) ** 2) ** 0.5
-                )
-            elif key == 191.25:
-                new_val = min(
-                    ((pl_cords[0]) ** 2 + (
-                        pl_cords[0] / self.hor) ** 2) ** 0.5,
-                    ((pl_cords[1] * self.hor) ** 2 + (
-                        pl_cords[1]) ** 2) ** 0.5
-                )
-            elif key == 348.75:
-                new_val = min(
-                    ((rev_cords[0]) ** 2 + (
-                        rev_cords[0] / self.hor) ** 2) ** 0.5,
-                    ((pl_cords[1] * self.hor) ** 2 + (
-                        pl_cords[1]) ** 2) ** 0.5
-                )
+            if key % 90 == 0:
+                new_val = (rev_cords)[int(key / 90)]
 
+            elif key % 45 == 0:
+                wkey = int((key / 45) // 2)
+                tri_side = min(rev_cords[wkey], rev_cords[(wkey + 1) % 4])
+                new_val = ((tri_side ** 2) * 2) ** 0.5
+
+            else:
+                wkey = int(((key / 11.25) // 2) % 6)
+                parts = [rev_cords[wkey], rev_cords[(wkey + 1) % 4]]
+                x_part, y_part = parts[::(wkey % 2) * -2 + 1]
+                new_val = min(
+                    ((x_part) ** 2 + (
+                        x_part / self.hor) ** 2) ** 0.5,
+                    ((y_part * self.hor) ** 2 + (
+                        y_part) ** 2) ** 0.5
+                )
 
             self.vision[key] = min(new_val, val)
 
@@ -2410,7 +2191,7 @@ class Game:
         if ang % 180 < 90:
             adde = 45 / 4
         else:
-            adde =  - 45 / 4
+            adde = -45 / 4
         cur = (cur + adde) % 360
         return cur
 
@@ -2476,7 +2257,7 @@ class Game:
             if not HOR and cur in [0, 180]:
                 for i in [-1, 1]:
                     cur2 = self.move_hor(i, cur)
-                    val = self.check_vis3(
+                    val = self.check_vis(
                         cords, cur2,
                         [box[0], box[0] + size[0]],
                         [box[1], box[1] + size[1]]
@@ -2487,9 +2268,7 @@ class Game:
                         )
                 continue
 
-        #for cur in self.vision.keys():
-            #val = self.check_vis2(cords, cur, box, self.vision[cur])
-            val = self.check_vis3(
+            val = self.check_vis(
                 cords, cur,
                 [box[0], box[0] + size[0]],
                 [box[1], box[1] + size[1]]
@@ -2501,90 +2280,6 @@ class Game:
 
 
     def check_vis(self, cords, ang, xs, ys):
-        ang_norm = ang % 90
-        ang_dir = ang // 90
-        if ang_dir % 2 == 0:
-            x, y = self.angs(ang_norm)
-            multi = 1
-        else:
-            y, x = self.angs(ang_norm)
-            multi = -1
-
-        c = multi * (y / (x + 0.000001))
-        print(c)
-
-        outs = []
-        for i in range(1):
-            if y == 0:
-                x_check = cords[1]
-            elif y == 0:
-                y_check = cords[0]
-            else:
-                x_check = c * (xs[i] - cords[0]) + cords[1]
-                y_check = (1 / c) * (ys[i] - cords[1]) + cords[0]
-
-            if x != 0 and ys[0] < x_check < ys[1]:
-                if (xs[i] >= cords[1] and ang_dir in [0, 1]) or (
-                        xs[i] <= cords[1] and ang_dir in [2, 3]
-                ):
-                    val = round(
-                        (
-                            (cords[0] - xs[i]) ** 2 +
-                            (cords[1] - x_check) ** 2
-                        ) ** 0.5, 4
-                    )
-                    outs.append(val)
-            if y != 0 and xs[0] < y_check < xs[1]:
-                if (ys[i] >= cords[0] and ang_dir in [0, 3]) or (
-                        ys[i] <= cords[0] and ang_dir in [1, 2]
-                ):
-                    val = round(
-                        (
-                            (cords[0] - y_check) ** 2 +
-                            (cords[1] - ys[i]) ** 2
-                        ) ** 0.5, 4
-                    )
-                    outs.append(val)
-
-        if not outs:
-            return None
-        return min(outs)
-
-
-    def check_vis2(self, cords, ang, box, mx):
-        ang_norm = ang % 90
-        ang_dir = ang // 90
-        if ang_dir//2 == 0:
-            x, y = self.angs(ang_norm)
-            if ang_dir == 2:
-                x = -x
-                y = -y
-        else:
-            y, x = self.angs(ang_norm)
-            if ang_dir == 1:
-                x = -x
-            else:
-                y = -y
-
-        x *= 50
-        y *= 50
-        hyp = round((x ** 2 + y ** 2) ** 0.5, 2)
-        print(hyp)
-        print(x, y)
-        mult = 0
-
-        while True:
-            mult += 1
-            cords[0] += x
-            cords[1] += y
-
-            if box.collidepoint(cords):
-                return mult * hyp
-            if mult * hyp >= mx:
-                return mult * hyp
-
-
-    def check_vis3(self, cords, ang, xs, ys):
         c = self.vis_trans[ang]
 
         if ang < 90 or ang > 270:
@@ -2756,8 +2451,8 @@ class Level(Game):
         return ret
 
 
-    def frame(self, dirn, fire, s_fire, special, fps, dis=True):
-        check2 = self.check_aim()
+    def frame(self, dirn, fire, s_fire, special, fps):
+        checks = self.check_aim()
 
         check = super().frame(dirn, fire, s_fire, special, fps)
 
@@ -2769,12 +2464,12 @@ class Level(Game):
         ret = False or check[0]
         mes = ""
 
-        for ch in check2:
-            ret = not (ch[0]) and ret
+        for check in checks:
+            ret = not (check[0]) and ret
             if ret:
                 pass
             else:
-                mes = ch[1]
+                mes = check[1]
                 break
 
         return ret, mes
@@ -2784,6 +2479,11 @@ class Level(Game):
 class Aim:
 
     def __init__(self, score=None, kills=None, damage=None, distanse=None):
+        self.score = score
+        self.kills = kills
+        self.damage = damage
+        self.distance = distanse
+
         frame = inspect.currentframe()
         args, _, _, values = inspect.getargvalues(frame)
 
@@ -2891,19 +2591,25 @@ def main(test=False, evolv=False):
     return current_game
 
 
-def run_evolv(data):
+def run_term(data):
+    funcs = {
+        "evolv": lambda obj, arg: obj.evolv_init(arg),
+        "test": lambda obj, args: obj.run_winner(args[0], int(args[1]))
+    }
+
     try:
-        _, name = data
+        _, func, *args = data
     except ValueError:
         print("Invalid number of arguments")
         return None
 
-    print("here")
     global SC_X, SC_Y #globalises the hight and the width of the screen,
     SC_X, SC_Y = 1366, 768
     current_game = Menu(None, [SC_X, SC_Y], 1)
-    print("here2")
-    current_game.evolv_init(name)
+    try:
+        funcs[func](current_game, args)
+    except KeyError:
+        print("Invalid function")
     return None
 
 
@@ -2911,4 +2617,4 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         main()
     else:
-        run_evolv(sys.argv)
+        run_term(sys.argv)
