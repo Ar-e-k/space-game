@@ -2,5 +2,5 @@ evolv_info
 evolv_info/
 test_dir
 test_dir/
-.gitignore
-.gitignore/
+.__pycache__
+.__pycache/
