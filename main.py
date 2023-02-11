@@ -26,7 +26,7 @@ import sprites
 import visualise as vis
 
 global RUNS, TELP, HOR
-RUNS = 80
+RUNS = 300
 TELP = True
 HOR = False
 
@@ -562,6 +562,7 @@ class Menu:
             props.append(dp(pr_def))
 
         workers = mp.cpu_count()
+        print(workers)
 
         pros = len(games) // workers
         if pros < 5:
@@ -610,6 +611,7 @@ class Menu:
         )
         plr = self.defult_plr()
         path = "evolv_info/" + name + "/winner.nnet"
+        print(path)
         try:
             with open(path, "rb") as fil:
                 gen = pickle.load(fil)
@@ -2049,6 +2051,7 @@ class Game:
             end_cords = []
             end_cords.append(pl_cords[0] + int(val * x))
             end_cords.append(pl_cords[1] + int(val * y))
+            print(type(pl_cords), type(pl_cords[0]), type(pl_cords[1]))
 
             pygame.draw.line(self._screen, [255, 0, 0], pl_cords, end_cords)
             pygame.draw.circle(self._screen, [255, 0, 0], end_cords, 10)
@@ -2593,7 +2596,7 @@ def main(test=False, evolv=False):
 
 def run_term(data):
     funcs = {
-        "evolv": lambda obj, arg: obj.evolv_init(arg),
+        "evolv": lambda obj, args: obj.evolv_init(args[0]),
         "test": lambda obj, args: obj.run_winner(args[0], int(args[1]))
     }
 

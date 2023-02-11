@@ -2,7 +2,7 @@
 fitness_criterion     = max
 fitness_threshold     = 25000
 #pop_size              = 8
-pop_size              = 400
+pop_size              = 1200
 reset_on_extinction   = False
 
 [DefaultGenome]
